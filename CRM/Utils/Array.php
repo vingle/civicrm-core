@@ -529,14 +529,17 @@ class CRM_Utils_Array {
 
     if ($lcMessages && $lcMessages != 'en_US' && class_exists('Collator')) {
       $collator = new Collator($lcMessages . '.utf8');
-      $collator->asort($array);
-    }
-    else {
-      // This calls PHP's built-in asort().
-      asort($array);
-    }
-
-    return $array;
+        If($collator!==NULL) {
+          $collator->asort($array); }
+           else {
+             asort($array);
+           }
+         }
+      else {
+        // This calls PHP's built-in asort().
+        asort($array);
+      }
+  return $array;
   }
 
   /**
