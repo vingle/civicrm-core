@@ -11,18 +11,20 @@
 
 namespace Civi\WorkflowMessage;
 
+use Civi\Api4\MessageTemplate;
 use Civi\Test\Invasive;
 
 /**
  * Test the WorkflowMessage class
  *
  * @group headless
+ * @group msgtpl
  */
 class ExampleWorkflowMessageTest extends \CiviUnitTestCase {
 
   protected function setUp(): void {
-    $this->useTransaction();
     parent::setUp();
+    $this->useTransaction();
   }
 
   /**
@@ -109,7 +111,7 @@ class ExampleWorkflowMessageTest extends \CiviUnitTestCase {
     /** @var \Civi\WorkflowMessage\WorkflowMessageInterface $ex */
     $ex = static::createExample();
     $ex->import('modelProps', [
-      'contactId' => $this->individualCreate(),
+      'contactID' => $this->individualCreate(),
       'myPublicString' => 'ok',
       'implicitStringArray' => ['single'],
       'myProtectedInt' => 2,
@@ -234,9 +236,9 @@ class ExampleWorkflowMessageTest extends \CiviUnitTestCase {
   }
 
   /**
-   * Create an impromptu instance of  `WorkflowMessage` for a new/unknown workflow.
+   * Create an impromptu instance of `WorkflowMessage` for a new/unknown workflow.
    */
-  public function testImpromptuImportExport() {
+  public function testImpromptuImportExport(): void {
     /** @var \Civi\WorkflowMessage\WorkflowMessageInterface $ex */
     $ex = WorkflowMessage::create('some_impromptu_wf', [
       'envelope' => ['from' => 'foo@example.com'],
@@ -268,7 +270,7 @@ class ExampleWorkflowMessageTest extends \CiviUnitTestCase {
     $rand = rand(0, 1000);
     $cid = $this->individualCreate(['first_name' => 'Foo', 'last_name' => 'Bar' . $rand, 'prefix_id' => NULL, 'suffix_id' => NULL]);
     /** @var \Civi\WorkflowMessage\GenericWorkflowMessage $ex */
-    $ex = $this->createExample()->setContactId($cid);
+    $ex = $this->createExample()->setContactID($cid);
     \Civi::dispatcher()->addListener('hook_civicrm_alterMailParams', function($e) use (&$hookCount) {
       $hookCount++;
       $this->assertEquals('my_example_wf', $e->params['workflow'], 'ExampleWorkflow::WORKFLOW should propagate to params[workflow]');
@@ -305,12 +307,23 @@ class ExampleWorkflowMessageTest extends \CiviUnitTestCase {
     $this->assertEquals('Hello Foo Bar' . $rand, $rendered['subject']);
   }
 
-  public function testRenderStoredTemplate() {
+  /**
+   * Test a stored template renders template values assigned via 'tplParams'.
+   *
+   * @throws \CRM_Core_Exception
+   */
+  public function testRenderStoredTemplate(): void {
     $hookCount = 0;
-    $rand = rand(0, 1000);
-    $cid = $this->individualCreate(['first_name' => 'Foo', 'last_name' => 'Bar' . $rand, 'prefix_id' => NULL, 'suffix_id' => NULL]);
-    /** @var \Civi\WorkflowMessage\GenericWorkflowMessage $ex */
-    $ex = WorkflowMessage::create('petition_sign', [
+    $cid = $this->individualCreate(['first_name' => 'Foo', 'last_name' => 'Bar', 'prefix_id' => NULL, 'suffix_id' => NULL]);
+    MessageTemplate::create()->setValues([
+      'workflow_name' => 'temporary',
+      'msg_subject' => '{contact.first_name} {contact.last_name}',
+      'msg_text' => 'Thank you for signing {$petitionTitle}',
+      'msg_html' => 'Thank you for signing {$petitionTitle}',
+      'is_default' => TRUE,
+    ])->execute();
+    /** @var \Civi\WorkflowMessage\GenericWorkflowMessage $example */
+    $example = WorkflowMessage::create('temporary', [
       'tokenContext' => ['contactId' => $cid],
       'tplParams' => [
         'greeting' => 'Greetings yo',
@@ -322,12 +335,12 @@ class ExampleWorkflowMessageTest extends \CiviUnitTestCase {
 
     \Civi::dispatcher()->addListener('hook_civicrm_alterMailParams', function($e) use (&$hookCount) {
       $hookCount++;
-      $this->assertEquals('petition_sign', $e->params['workflow']);
+      $this->assertEquals('temporary', $e->params['workflow']);
     });
     $this->assertEquals(0, $hookCount);
-    $rendered = $ex->renderTemplate();
+    $rendered = $example->renderTemplate();
     $this->assertEquals(1, $hookCount);
-    $this->assertStringContainsString('Foo Bar' . $rand, $rendered['subject']);
+    $this->assertStringContainsString('Foo Bar', $rendered['subject']);
     $this->assertStringContainsString('Thank you for signing The Fake Petition', $rendered['html']);
     $this->assertStringContainsString('Thank you for signing The Fake Petition', $rendered['text']);
   }

@@ -13,11 +13,15 @@ namespace Civi\WorkflowMessage\Traits;
 
 use Civi\WorkflowMessage\GenericWorkflowMessage;
 
+/**
+ * @group headless
+ * @group msgtpl
+ */
 class AddressingTraitTest extends \CiviUnitTestCase {
 
   protected function setUp(): void {
-    $this->useTransaction();
     parent::setUp();
+    $this->useTransaction();
   }
 
   /**

@@ -14,7 +14,7 @@
  * @package CRM
  * @copyright CiviCRM LLC https://civicrm.org/licensing
  */
-class CRM_PCP_BAO_PCP extends CRM_PCP_DAO_PCP {
+class CRM_PCP_BAO_PCP extends CRM_PCP_DAO_PCP implements \Civi\Core\HookInterface {
 
   /**
    * The action links that we need to display for the browse screen.
@@ -24,31 +24,29 @@ class CRM_PCP_BAO_PCP extends CRM_PCP_DAO_PCP {
   public static $_pcpLinks = NULL;
 
   /**
-   * Add or update either a Personal Campaign Page OR a PCP Block.
-   *
-   * @param array $params
-   *   Values to create the pcp.
-   *
-   * @return object
+   * @deprecated
+   * @return CRM_PCP_DAO_PCP
    */
   public static function create($params) {
+    CRM_Core_Error::deprecatedFunctionWarning('writeRecord');
+    return self::writeRecord($params);
+  }
 
-    $dao = new CRM_PCP_DAO_PCP();
-    $dao->copyValues($params);
-
-    // ensure we set status_id since it is a not null field
-    // we should change the schema and allow this to be null
-    if (!$dao->id && !isset($dao->status_id)) {
-      $dao->status_id = 0;
+  /**
+   * Callback for hook_civicrm_pre().
+   *
+   * @param \Civi\Core\Event\PreEvent $event
+   *
+   * @throws \CRM_Core_Exception
+   */
+  public static function self_hook_civicrm_pre(\Civi\Core\Event\PreEvent $event): void {
+    if ($event->action === 'create') {
+      // For some reason `status_id` is allowed to be empty
+      // FIXME: Why?
+      $event->params['status_id'] = $event->params['status_id'] ?? 0;
+      // Supply default for `currency`
+      $event->params['currency'] = $event->params['currency'] ?? Civi::settings()->get('defaultCurrency');
     }
-
-    // set currency for CRM-1496
-    if (!isset($dao->currency)) {
-      $dao->currency = CRM_Core_Config::singleton()->defaultCurrency;
-    }
-
-    $dao->save();
-    return $dao;
   }
 
   /**
@@ -341,24 +339,12 @@ WHERE pcp.id = %1 AND cc.contribution_status_id = %2 AND cc.is_test = 0";
   }
 
   /**
-   * Delete the campaign page.
-   *
+   * @deprecated
    * @param int $id
-   *   Campaign page id.
    */
   public static function deleteById($id) {
-    CRM_Utils_Hook::pre('delete', 'Campaign', $id);
-
-    $transaction = new CRM_Core_Transaction();
-
-    // delete from pcp table
-    $pcp = new CRM_PCP_DAO_PCP();
-    $pcp->id = $id;
-    $pcp->delete();
-
-    $transaction->commit();
-
-    CRM_Utils_Hook::post('delete', 'Campaign', $id, $pcp);
+    CRM_Core_Error::deprecatedFunctionWarning('deleteRecord');
+    return self::deleteRecord(['id' => $id]);
   }
 
   /**
@@ -391,7 +377,7 @@ WHERE pcp.id = %1 AND cc.contribution_status_id = %2 AND cc.is_test = 0";
       $form->assign('profile', $profile);
     }
 
-    $form->add('select', 'supporter_profile_id', ts('Supporter Profile'), ['' => ts('- select -')] + $profile, TRUE);
+    $form->add('select', 'supporter_profile_id', ts('Supporter Profile'), ['' => ts('- select -')] + $profile, TRUE, ['class' => 'crm-select2']);
 
     //CRM-15821 - To add new option for PCP "Owner" notification
     $ownerNotifications = CRM_Core_OptionGroup::values('pcp_owner_notify');
@@ -470,8 +456,9 @@ WHERE pcp.id = %1 AND cc.contribution_status_id = %2 AND cc.is_test = 0";
     // build honor roll fields for registration form if supporter has honor roll enabled for their PCP
     if ($pcpInfo['is_honor_roll']) {
       $page->assign('is_honor_roll', TRUE);
-      $page->add('checkbox', 'pcp_display_in_roll', ts('Show my support in the public honor roll'), NULL, NULL,
-        ['onclick' => "showHideByValue('pcp_display_in_roll','','nameID|nickID|personalNoteID','block','radio',false); pcpAnonymous( );"]
+      $page->add('checkbox', 'pcp_display_in_roll', ts('Show my support in the public honor roll'),
+        ['onclick' => "showHideByValue('pcp_display_in_roll','','nameID|nickID|personalNoteID','block','radio',false); pcpAnonymous( );"],
+        FALSE
       );
       $extraOption = ['onclick' => "return pcpAnonymous( );"];
       $page->addRadio('pcp_is_anonymous', '', [ts('Include my name and message'), ts('List my support anonymously')], [], '&nbsp;&nbsp;&nbsp;', FALSE, [$extraOption, $extraOption]);
@@ -520,13 +507,13 @@ WHERE pcp.id = %1 AND cc.contribution_status_id = %2 AND cc.is_test = 0";
 
       // ignore startDate for events - PCP's can be active long before event start date
       $startDate = 0;
-      $endDate = CRM_Utils_Date::unixTime(CRM_Utils_Array::value('end_date', $entity));
+      $endDate = CRM_Utils_Date::unixTime($entity['end_date'] ?? '');
     }
     elseif ($component == 'contribute') {
       $urlBase = 'civicrm/contribute/transact';
       //start and end date of the contribution page
-      $startDate = CRM_Utils_Date::unixTime(CRM_Utils_Array::value('start_date', $entity));
-      $endDate = CRM_Utils_Date::unixTime(CRM_Utils_Array::value('end_date', $entity));
+      $startDate = CRM_Utils_Date::unixTime($entity['start_date'] ?? '');
+      $endDate = CRM_Utils_Date::unixTime($entity['end_date'] ?? '');
     }
 
     // define redirect url back to contrib page or event if needed
@@ -551,8 +538,8 @@ WHERE pcp.id = %1 AND cc.contribution_status_id = %2 AND cc.is_test = 0";
     }
     // Check if we're in range for contribution page start and end dates. for events, check if after event end date
     elseif (($startDate && $startDate > $now) || ($endDate && $endDate < $now)) {
-      $customStartDate = CRM_Utils_Date::customFormat(CRM_Utils_Array::value('start_date', $entity));
-      $customEndDate = CRM_Utils_Date::customFormat(CRM_Utils_Array::value('end_date', $entity));
+      $customStartDate = CRM_Utils_Date::customFormat($entity['start_date'] ?? '');
+      $customEndDate = CRM_Utils_Date::customFormat($entity['end_date'] ?? '');
       if ($startDate && $endDate) {
         $statusMessage = ts('The Personal Campaign Page you have just visited is only active from %1 to %2. However you can still support the campaign here.',
           [1 => $customStartDate, 2 => $customEndDate]
@@ -704,7 +691,8 @@ WHERE pcp.id = %1 AND cc.contribution_status_id = %2 AND cc.is_test = 0";
     );
     $tplParams['pcpInfoURL'] = $pcpInfoURL;
     $tplParams['contribPageTitle'] = $contribPageTitle;
-    if ($emails = CRM_Utils_Array::value('notify_email', $pcpBlockInfo)) {
+    $emails = $pcpBlockInfo['notify_email'] ?? NULL;
+    if ($emails) {
       $emailArray = explode(',', $emails);
       $tplParams['pcpNotifyEmailAddress'] = $emailArray[0];
     }

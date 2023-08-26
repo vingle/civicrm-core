@@ -204,7 +204,7 @@ class CRM_Extension_ManagerTest extends CiviUnitTestCase {
       $this->fail('Expected disable to fail due to dependency');
     }
     catch (CRM_Extension_Exception $e) {
-      $this->assertRegExp('/test.foo.downstream/', $e->getMessage());
+      $this->assertMatchesRegularExpression('/test.foo.downstream/', $e->getMessage());
     }
 
     // Status unchanged
@@ -465,6 +465,18 @@ class CRM_Extension_ManagerTest extends CiviUnitTestCase {
     $this->assertFalse(file_exists("{$this->basedir}/weird/whizbang/oddball.php"));
     $this->assertEquals('newextension', $this->mapper->keyToInfo('test.whiz.bang')->file);
     $this->assertDBQuery('newextension', 'SELECT file FROM civicrm_extension WHERE full_name ="test.whiz.bang"');
+  }
+
+  public function testComponentExtensionSync() {
+    CRM_Core_BAO_ConfigSetting::enableComponent('CiviCampaign');
+    $this->assertEquals(CRM_Extension_Manager::STATUS_INSTALLED, CRM_Extension_System::singleton()->getManager()->getStatus('civi_campaign'));
+    CRM_Core_BAO_ConfigSetting::disableComponent('CiviCampaign');
+    $this->assertEquals(CRM_Extension_Manager::STATUS_DISABLED, CRM_Extension_System::singleton()->getManager()->getStatus('civi_campaign'));
+    $this->assertFalse(CRM_Core_Component::isEnabled('CiviCampaign'));
+    CRM_Extension_System::singleton()->getManager()->install('civi_campaign');
+    $this->assertTrue(CRM_Core_Component::isEnabled('CiviCampaign'));
+    CRM_Extension_System::singleton()->getManager()->disable('civi_campaign');
+    $this->assertFalse(CRM_Core_Component::isEnabled('CiviCampaign'));
   }
 
   /**

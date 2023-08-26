@@ -64,7 +64,7 @@ class PathUrlTest extends \CiviEndToEndTestCase {
 
     foreach (array_merge($urlOnly, $pathAndUrl) as $var) {
       $url = \Civi::paths()->getVariable($var, 'url');
-      $this->assertRegExp(';^https?:;', $url, "The URL for $var should resolve a URL.");
+      $this->assertMatchesRegularExpression(';^https?:;', $url, "The URL for $var should resolve a URL.");
     }
   }
 
@@ -73,9 +73,9 @@ class PathUrlTest extends \CiviEndToEndTestCase {
    * @param string $url
    */
   private function assertUrlContentRegex($expectContentRegex, $url) {
-    $this->assertRegexp(';^https?:;', $url, "The URL ($url) should be absolute.");
+    $this->assertMatchesRegularExpression(';^https?:;', $url, "The URL ($url) should be absolute.");
     $content = file_get_contents($url);
-    $this->assertRegexp($expectContentRegex, $content);
+    $this->assertMatchesRegularExpression($expectContentRegex, $content);
   }
 
   /**
@@ -85,7 +85,7 @@ class PathUrlTest extends \CiviEndToEndTestCase {
   private function assertFileContentRegex($expectContentRegex, $file) {
     $this->assertFileExists($file);
     $content = file_get_contents($file);
-    $this->assertRegexp($expectContentRegex, $content);
+    $this->assertMatchesRegularExpression($expectContentRegex, $content);
   }
 
   /**
@@ -103,7 +103,7 @@ class PathUrlTest extends \CiviEndToEndTestCase {
     // WORKAROUND: There's some issue where the URL gets a diff value in WP E2E env
     // than in normal WP env. The `cv url` command seems to behave more
     // representatively, though this technique is harder to inspect with xdebug.
-    $url = cv('url civicrm/contribute?reset=1');
+    $url = cv('url civicrm/contribute?reset=1 --entry=backend');
     // $url = \CRM_Utils_System::url('civicrm/contribute', 'reset=1', TRUE, NULL, FALSE);
 
     $parts = parse_url($url);

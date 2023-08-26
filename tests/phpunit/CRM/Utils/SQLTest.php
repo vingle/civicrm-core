@@ -7,8 +7,8 @@
 class CRM_Utils_SQLTest extends CiviUnitTestCase {
 
   public function setUp(): void {
-    $this->useTransaction();
     parent::setUp();
+    $this->useTransaction();
   }
 
   public function testInterpolate() {
@@ -33,7 +33,7 @@ class CRM_Utils_SQLTest extends CiviUnitTestCase {
       ]);
     }
     catch (CRM_Core_Exception $e) {
-      $this->assertRegExp(';Cannot build query. Variable "!the_table" is unknown.;', $e->getMessage());
+      $this->assertMatchesRegularExpression(';Cannot build query. Variable "!the_table" is unknown.;', $e->getMessage());
     }
   }
 

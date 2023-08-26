@@ -20,8 +20,6 @@ class api_v3_PriceSetTest extends CiviUnitTestCase {
   protected $contactIds = [];
   protected $_entity = 'price_set';
 
-  public $DBResetRequired = TRUE;
-
   /**
    * Set up for class.
    */
@@ -33,7 +31,7 @@ class api_v3_PriceSetTest extends CiviUnitTestCase {
       'is_active' => 1,
       'help_pre' => "Please describe your goat in detail",
       'help_post' => "thank you for your time",
-      'extends' => 2,
+      'extends' => [2],
       'financial_type_id' => 1,
       'is_quick_config' => 1,
       'is_reserved' => 1,
@@ -44,7 +42,7 @@ class api_v3_PriceSetTest extends CiviUnitTestCase {
    * Test create price set.
    */
   public function testCreatePriceSet() {
-    $result = $this->callAPIAndDocument($this->_entity, 'create', $this->_params, __FUNCTION__, __FILE__);
+    $result = $this->callAPISuccess($this->_entity, 'create', $this->_params);
     $this->assertEquals(1, $result['count']);
     $this->assertNotNull($result['values'][$result['id']]['id']);
     $this->getAndCheck($this->_params, $result['id'], $this->_entity);
@@ -62,7 +60,7 @@ class api_v3_PriceSetTest extends CiviUnitTestCase {
       'financial_type_id' => 1,
       'extends' => [1, 2],
     ];
-    $createResult = $this->callAPIAndDocument($this->_entity, 'create', $createParams, __FUNCTION__, __FILE__);
+    $createResult = $this->callAPISuccess($this->_entity, 'create', $createParams);
 
     // Get priceset we just created.
     $result = $this->callAPISuccess($this->_entity, 'getSingle', [
@@ -88,7 +86,7 @@ class api_v3_PriceSetTest extends CiviUnitTestCase {
     $getParams = [
       'name' => 'default_contribution_amount',
     ];
-    $getResult = $this->callAPIAndDocument($this->_entity, 'get', $getParams, __FUNCTION__, __FILE__);
+    $getResult = $this->callAPISuccess($this->_entity, 'get', $getParams);
     $this->assertEquals(1, $getResult['count']);
   }
 
@@ -108,7 +106,7 @@ class api_v3_PriceSetTest extends CiviUnitTestCase {
       'title' => 'event price',
       'extends' => 1,
     ];
-    $createResult = $this->callAPIAndDocument($this->_entity, 'create', $createParams, __FUNCTION__, __FILE__);
+    $createResult = $this->callAPISuccess($this->_entity, 'create', $createParams);
     $result = $this->callAPISuccess($this->_entity, 'get', [
       'id' => $createResult['id'],
     ]);
@@ -119,7 +117,7 @@ class api_v3_PriceSetTest extends CiviUnitTestCase {
     $startCount = $this->callAPISuccess($this->_entity, 'getcount', []);
     $createResult = $this->callAPISuccess($this->_entity, 'create', $this->_params);
     $deleteParams = ['id' => $createResult['id']];
-    $this->callAPIAndDocument($this->_entity, 'delete', $deleteParams, __FUNCTION__, __FILE__);
+    $this->callAPISuccess($this->_entity, 'delete', $deleteParams);
     $endCount = $this->callAPISuccess($this->_entity, 'getcount', []);
     $this->assertEquals($startCount, $endCount);
   }

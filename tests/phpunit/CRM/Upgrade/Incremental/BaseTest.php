@@ -133,12 +133,15 @@ class CRM_Upgrade_Incremental_BaseTest extends CiviUnitTestCase {
    * Test function for messages on upgrade.
    */
   public function testMessageTemplateGetUpgradeMessages() {
+    \Civi\Api4\MessageTemplate::update(FALSE)
+      ->addValue('msg_text', 'Edited text')
+      ->addWhere('workflow_name', '=', 'contribution_online_receipt')
+      ->addWhere('is_default', '=', TRUE)
+      ->execute();
     $messageTemplateObject = new CRM_Upgrade_Incremental_MessageTemplates('5.4.alpha1');
     $messages = $messageTemplateObject->getUpgradeMessages();
     $this->assertEquals([
-      'Memberships - Receipt (on-line)' => 'Use email greeting at top where available',
       'Contributions - Receipt (on-line)' => 'Use email greeting at top where available',
-      'Events - Registration Confirmation and Receipt (on-line)' => 'Use email greeting at top where available',
     ], $messages);
   }
 
@@ -203,13 +206,13 @@ class CRM_Upgrade_Incremental_BaseTest extends CiviUnitTestCase {
       ],
     ]);
     $savedSearch = $this->callAPISuccessGetSingle('SavedSearch', []);
-    $this->assertContains('6', array_keys($savedSearch['form_values']));
+    $this->assertContainsEquals('6', array_keys($savedSearch['form_values']));
     $this->assertEquals('membership_join_date_relative', $savedSearch['form_values'][6][0]);
     $this->assertEquals('this.day', $savedSearch['form_values'][6][2]);
-    $this->assertContains('7', array_keys($savedSearch['form_values']));
+    $this->assertContainsEquals('7', array_keys($savedSearch['form_values']));
     $this->assertEquals('membership_start_date_relative', $savedSearch['form_values'][7][0]);
     $this->assertEquals('this.week', $savedSearch['form_values'][7][2]);
-    $this->assertContains('8', array_keys($savedSearch['form_values']));
+    $this->assertContainsEquals('8', array_keys($savedSearch['form_values']));
     $this->assertEquals('membership_end_date_relative', $savedSearch['form_values'][8][0]);
     $this->assertEquals('this.week', $savedSearch['form_values'][8][2]);
   }
@@ -407,7 +410,6 @@ class CRM_Upgrade_Incremental_BaseTest extends CiviUnitTestCase {
    * Test convert custom saved search
    */
   public function testSmartGroupCustomDateRangeSearch() {
-    $this->entity = 'Contact';
     $this->createCustomGroupWithFieldOfType([], 'date');
     $dateCustomFieldName = $this->getCustomFieldName('date');
     $this->callAPISuccess('SavedSearch', 'create', [

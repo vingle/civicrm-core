@@ -193,6 +193,7 @@ class CRM_Core_PseudoConstant {
       'fresh' => FALSE,
       'context' => $context,
       'condition' => [],
+      'values' => [],
     ];
     $entity = CRM_Core_DAO_AllCoreTables::getBriefName($daoName);
 
@@ -224,7 +225,7 @@ class CRM_Core_PseudoConstant {
 
       // if callback is specified..
       if (!empty($pseudoconstant['callback'])) {
-        $fieldOptions = call_user_func(Civi\Core\Resolver::singleton()->get($pseudoconstant['callback']), $context, $params);
+        $fieldOptions = call_user_func(Civi\Core\Resolver::singleton()->get($pseudoconstant['callback']), $fieldName, $params);
         $fieldOptions = self::formatArrayOptions($context, $fieldOptions);
         //CRM-18223: Allow additions to field options via hook.
         CRM_Utils_Hook::fieldOptions($entity, $fieldName, $fieldOptions, $params);
@@ -285,7 +286,7 @@ class CRM_Core_PseudoConstant {
     }
 
     // Return "Yes" and "No" for boolean fields
-    elseif (CRM_Utils_Array::value('type', $fieldSpec) === CRM_Utils_Type::T_BOOLEAN) {
+    elseif (($fieldSpec['type'] ?? NULL) === CRM_Utils_Type::T_BOOLEAN) {
       $output = $context == 'validate' ? [0, 1] : CRM_Core_SelectValues::boolean();
       CRM_Utils_Hook::fieldOptions($entity, $fieldName, $output, $params);
       return $flip ? array_flip($output) : $output;
@@ -799,13 +800,8 @@ WHERE  id = %1";
    *   array reference of all groups.
    */
   public static function allGroup($groupType = NULL, $excludeHidden = TRUE) {
-    if ($groupType === 'validate') {
-      // validate gets passed through from getoptions. Handle in the deprecated
-      // fn rather than change the new pattern.
-      $groupType = NULL;
-    }
     $condition = CRM_Contact_BAO_Group::groupTypeCondition($groupType, $excludeHidden);
-    $groupKey = ($groupType ? $groupType : 'null') . !empty($excludeHidden);
+    $groupKey = ($groupType ?: 'null') . !empty($excludeHidden);
 
     if (!isset(Civi::$statics[__CLASS__]['groups']['allGroup'][$groupKey])) {
       self::populate(Civi::$statics[__CLASS__]['groups']['allGroup'][$groupKey], 'CRM_Contact_DAO_Group', FALSE, 'title', 'is_active', $condition);
@@ -1500,6 +1496,10 @@ WHERE  id = %1
     $from = 'FROM %3';
     $wheres = [];
     $order = 'ORDER BY %2';
+    if (in_array('id', $availableFields, TRUE)) {
+      // Example: 'ORDER BY abbreviation, id' because `abbreviation`s are not unique.
+      $order .= ', id';
+    }
 
     // Use machine name in certain contexts
     if ($context === 'validate' || $context === 'match') {

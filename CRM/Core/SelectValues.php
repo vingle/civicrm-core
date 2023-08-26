@@ -156,9 +156,9 @@ class CRM_Core_SelectValues {
    */
   public static function eventDate() {
     return [
-      'start_date' => ts('start date'),
-      'end_date' => ts('end date'),
-      'join_date' => ts('member since'),
+      'start_date' => ts('Membership Start Date'),
+      'end_date' => ts('Membership Expiration Date'),
+      'join_date' => ts('Member Since'),
     ];
   }
 
@@ -486,6 +486,19 @@ class CRM_Core_SelectValues {
       $addr = array_merge(['' => ts('- select -')], CRM_Utils_System::getPluginList('CRM/Utils/Address', '.php', ['BatchUpdate']));
     }
     return $addr;
+  }
+
+  public static function smsProvider(): array {
+    $providers = CRM_SMS_BAO_Provider::getProviders(NULL, NULL, TRUE, 'is_default desc, title');
+    $result = [];
+    foreach ($providers as $provider) {
+      $result[] = [
+        'id' => $provider['id'],
+        'name' => $provider['name'],
+        'label' => $provider['title'],
+      ];
+    }
+    return $result;
   }
 
   /**
@@ -1193,6 +1206,13 @@ class CRM_Core_SelectValues {
     ];
   }
 
+  public static function beforeAfter() {
+    return [
+      'before' => ts('Before'),
+      'after' => ts('After'),
+    ];
+  }
+
   /**
    * Columns from the option_value table which may or may not be used by each option_group.
    *
@@ -1208,6 +1228,25 @@ class CRM_Core_SelectValues {
       'icon' => 'icon',
       'color' => 'color',
     ];
+  }
+
+  /**
+   * Callback for Role.permissions pseudoconstant values.
+   *
+   * Permissions for Civi Standalone, not used by CMS-based systems.
+   *
+   * @return array
+   */
+  public static function permissions() {
+    $perms = $options = [];
+    \CRM_Utils_Hook::permissionList($perms);
+
+    foreach ($perms as $machineName => $details) {
+      if (!empty($details['is_active'])) {
+        $options[$machineName] = $details['title'];
+      }
+    }
+    return $options;
   }
 
 }

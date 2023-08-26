@@ -7,8 +7,8 @@
 class CRM_Utils_SQL_SelectTest extends CiviUnitTestCase {
 
   public function setUp(): void {
-    $this->useTransaction();
     parent::setUp();
+    $this->useTransaction();
   }
 
   public function testGetDefault() {
@@ -154,7 +154,7 @@ class CRM_Utils_SQL_SelectTest extends CiviUnitTestCase {
       $this->fail('In output mode, we should reject requests to interpolate inputs.');
     }
     catch (Exception $e) {
-      $this->assertRegExp("/Cannot mix interpolation modes/", $e->getMessage());
+      $this->assertMatchesRegularExpression("/Cannot mix interpolation modes/", $e->getMessage());
     }
 
     $outputModeFragment = CRM_Utils_SQL_Select::fragment()
@@ -166,7 +166,7 @@ class CRM_Utils_SQL_SelectTest extends CiviUnitTestCase {
       $this->fail('In output-mode, we should reject requests to merge from input-mode.');
     }
     catch (Exception $e) {
-      $this->assertRegExp("/Cannot merge queries that use different interpolation modes/", $e->getMessage());
+      $this->assertMatchesRegularExpression("/Cannot merge queries that use different interpolation modes/", $e->getMessage());
     }
   }
 
@@ -253,7 +253,7 @@ class CRM_Utils_SQL_SelectTest extends CiviUnitTestCase {
       $this->fail('Unknown variables should throw errors in strict mode.');
     }
     catch (Exception $e) {
-      $this->assertRegExp('/Cannot build query. Variable "@johnMcClane" is unknown./', $e->getMessage());
+      $this->assertMatchesRegularExpression('/Cannot build query. Variable "@johnMcClane" is unknown./', $e->getMessage());
     }
   }
 
@@ -306,6 +306,32 @@ class CRM_Utils_SQL_SelectTest extends CiviUnitTestCase {
       ->merge($fragmentOutMode)
       ->merge($fragmentAutoMode);
     $this->assertLike('SELECT c, d, a, b, e FROM foo WHERE (c = "4") AND (a = 2) AND (whipit())', $query->toSQL());
+  }
+
+  public function testUnion() {
+    $a = CRM_Utils_SQL_Select::from('a')->select('a_name')->where('a1 = !num')->param('num', 100);
+    $b = CRM_Utils_SQL_Select::from('b')->select('b_name')->where('b2 = @val')->param('val', "ab cd");
+    $u = CRM_Utils_SQL_Select::fromSet()->union('ALL', [$a, $b])->limit(100)->orderBy('a_name');
+    $expectA = 'SELECT a_name FROM a WHERE (a1 = 100) ';
+    $expectB = 'SELECT b_name FROM b WHERE (b2 = "ab cd") ';
+    $expectUnion = "SELECT * FROM (($expectA) UNION ALL ($expectB)) _sql_set ORDER BY a_name LIMIT 100 OFFSET 0";
+    $this->assertLike($expectUnion, $u->toSQL());
+  }
+
+  public function testUnionIntersect() {
+    $a = CRM_Utils_SQL_Select::from('a')->select('a_name')->where('a1 = !num')->param('num', 100);
+    $b = CRM_Utils_SQL_Select::from('b')->select('b_name')->where('b2 = @val')->param('val', "bb bb");
+    $c = CRM_Utils_SQL_Select::from('c')->select('c_name')->where('c3 = @val')->param('val', "cc cc");
+    $u = CRM_Utils_SQL_Select::fromSet()
+      ->union('ALL', [$a, $b])
+      ->union('DISTINCT', $c)
+      ->limit(100)
+      ->orderBy('a_name');
+    $expectA = 'SELECT a_name FROM a WHERE (a1 = 100) ';
+    $expectB = 'SELECT b_name FROM b WHERE (b2 = "bb bb") ';
+    $expectC = 'SELECT c_name FROM c WHERE (c3 = "cc cc") ';
+    $expectUnion = "SELECT * FROM (($expectA) UNION ALL ($expectB) UNION DISTINCT ($expectC)) _sql_set ORDER BY a_name LIMIT 100 OFFSET 0";
+    $this->assertLike($expectUnion, $u->toSQL());
   }
 
   public function testArrayGet() {
@@ -362,17 +388,6 @@ class CRM_Utils_SQL_SelectTest extends CiviUnitTestCase {
       ])
       ->param(['@suffix' => ' and on and on']);
     $this->assertLike('INSERT INTO bar (name, first, second) SELECT foo.name, concat(foo.one, " and on and on"), foo.two FROM foo WHERE (foo.whiz = 100) ON DUPLICATE KEY UPDATE first = concat(foo.one, " and on and on"), second = foo.two', $select->toSQL());
-  }
-
-  /**
-   * @param $expected
-   * @param $actual
-   * @param string $message
-   */
-  public function assertLike($expected, $actual, $message = '') {
-    $expected = trim((preg_replace('/[ \r\n\t]+/', ' ', $expected)));
-    $actual = trim((preg_replace('/[ \r\n\t]+/', ' ', $actual)));
-    $this->assertEquals($expected, $actual, $message);
   }
 
 }

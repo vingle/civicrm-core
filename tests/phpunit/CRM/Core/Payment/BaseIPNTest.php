@@ -42,7 +42,6 @@ class CRM_Core_Payment_BaseIPNTest extends CiviUnitTestCase {
   protected $_recurId;
   protected $_membershipId;
   protected $input;
-  protected $ids;
   protected $objects;
 
   /**
@@ -54,7 +53,6 @@ class CRM_Core_Payment_BaseIPNTest extends CiviUnitTestCase {
    * @var int
    */
   protected $_membershipStatusID;
-  public $DBResetRequired = FALSE;
 
   /**
    * Setup function.
@@ -371,7 +369,7 @@ class CRM_Core_Payment_BaseIPNTest extends CiviUnitTestCase {
    *
    */
   public function _setUpParticipantObjects(string $participantStatus = 'Attended'): void {
-    $event = $this->eventCreate(['is_email_confirm' => 1]);
+    $event = $this->eventCreatePaid(['is_email_confirm' => 1, 'email_confirm_text' => '']);
     $this->setupContribution();
 
     $this->_eventId = $event['id'];

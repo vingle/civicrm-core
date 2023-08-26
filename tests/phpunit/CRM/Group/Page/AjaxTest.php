@@ -80,15 +80,14 @@ class CRM_Group_Page_AjaxTest extends CiviUnitTestCase {
   }
 
   /**
-   * CRM-18528 - Retrieve groups with filter
+   * CRM-18528 - Retrieve groups with filter.
    */
-  public function testGroupListWithFilter() {
+  public function testGroupListWithFilter(): void {
     $this->setPermissionAndRequest(['view all contacts', 'edit groups']);
 
     $_GET = $this->_params;
-    $obj = new CRM_Group_Page_AJAX();
 
-    //filter with title
+    // Filter with title.
     $_GET['title'] = 'not-me-active';
     try {
       CRM_Group_Page_AJAX::getGroupList();
@@ -117,10 +116,9 @@ class CRM_Group_Page_AjaxTest extends CiviUnitTestCase {
     }
     $this->assertEquals(1, $groups['recordsTotal']);
     $this->assertEquals('not-me-active', $groups['data'][0]['title']);
-    unset($_GET['title']);
-    unset($_GET['savedSearch']);
+    unset($_GET['title'], $_GET['savedSearch']);
 
-    // check on status
+    // Check on status.
     $_GET['status'] = 2;
     try {
       CRM_Group_Page_AJAX::getGroupList();
@@ -128,15 +126,15 @@ class CRM_Group_Page_AjaxTest extends CiviUnitTestCase {
     catch (CRM_Core_Exception_PrematureExitException $e) {
       $groups = $e->errorData;
     }
-    foreach ($groups['data'] as $key => $val) {
+    foreach ($groups['data'] as $val) {
       $this->assertEquals('crm-entity disabled', $val['DT_RowClass']);
     }
   }
 
   /**
-   * Retrieve groups as 'view all contacts'
+   * Retrieve groups as 'view all contacts'.
    */
-  public function testGroupListViewAllContacts() {
+  public function testGroupListViewAllContacts(): void {
     $this->setPermissionAndRequest(['view all contacts', 'edit groups']);
     $params = $this->_params;
     $groups = CRM_Contact_BAO_Group::getGroupListSelector($params);
@@ -163,8 +161,8 @@ class CRM_Group_Page_AjaxTest extends CiviUnitTestCase {
     $params = $this->_params;
     $groups = CRM_Contact_BAO_Group::getGroupListSelector($params);
     $this->assertEquals(2, $groups['recordsTotal']);
-    $this->assertEquals('<span><a href="/index.php?q=civicrm/group/search&amp;reset=1&amp;force=1&amp;context=smog&amp;gid=4&amp;component_mode=1" class="action-item crm-hover-button" title=\'Group Contacts\' >Contacts</a><a href="/index.php?q=civicrm/group&amp;reset=1&amp;action=update&amp;id=4" class="action-item crm-hover-button" title=\'Edit Group\' >Settings</a></span><span class=\'btn-slide crm-hover-button\'>more<ul class=\'panel\'><li><a href="#" class="action-item crm-hover-button crm-enable-disable" title=\'Disable Group\' >Disable</a></li><li><a href="/index.php?q=civicrm/group&amp;reset=1&amp;action=delete&amp;id=4" class="action-item crm-hover-button small-popup" title=\'Delete Group\' >Delete</a></li></ul></span>', $groups['data'][0]['links']);
-    $this->assertEquals('<span><a href="/index.php?q=civicrm/group/search&amp;reset=1&amp;force=1&amp;context=smog&amp;gid=2&amp;component_mode=1" class="action-item crm-hover-button" title=\'Group Contacts\' >Contacts</a><a href="/index.php?q=civicrm/group&amp;reset=1&amp;action=update&amp;id=2" class="action-item crm-hover-button" title=\'Edit Group\' >Settings</a></span><span class=\'btn-slide crm-hover-button\'>more<ul class=\'panel\'><li><a href="#" class="action-item crm-hover-button crm-enable-disable" title=\'Disable Group\' >Disable</a></li><li><a href="/index.php?q=civicrm/group&amp;reset=1&amp;action=delete&amp;id=2" class="action-item crm-hover-button small-popup" title=\'Delete Group\' >Delete</a></li></ul></span>', $groups['data'][1]['links']);
+    $this->assertEquals('<span><a href="/index.php?q=civicrm/group/search&amp;reset=1&amp;force=1&amp;context=smog&amp;gid=4&amp;component_mode=1" class="action-item crm-hover-button" title=\'Group Contacts\' >Contacts</a><a href="/index.php?q=civicrm/group/edit&amp;reset=1&amp;action=update&amp;id=4" class="action-item crm-hover-button" title=\'Edit Group\' >Settings</a></span><span class=\'btn-slide crm-hover-button\'>more<ul class=\'panel\'><li><a href="#" class="action-item crm-hover-button crm-enable-disable" title=\'Disable Group\' >Disable</a></li><li><a href="/index.php?q=civicrm/group/edit&amp;reset=1&amp;action=delete&amp;id=4" class="action-item crm-hover-button small-popup" title=\'Delete Group\' >Delete</a></li></ul></span>', $groups['data'][0]['links']);
+    $this->assertEquals('<span><a href="/index.php?q=civicrm/group/search&amp;reset=1&amp;force=1&amp;context=smog&amp;gid=2&amp;component_mode=1" class="action-item crm-hover-button" title=\'Group Contacts\' >Contacts</a><a href="/index.php?q=civicrm/group/edit&amp;reset=1&amp;action=update&amp;id=2" class="action-item crm-hover-button" title=\'Edit Group\' >Settings</a></span><span class=\'btn-slide crm-hover-button\'>more<ul class=\'panel\'><li><a href="#" class="action-item crm-hover-button crm-enable-disable" title=\'Disable Group\' >Disable</a></li><li><a href="/index.php?q=civicrm/group/edit&amp;reset=1&amp;action=delete&amp;id=2" class="action-item crm-hover-button small-popup" title=\'Delete Group\' >Delete</a></li></ul></span>', $groups['data'][1]['links']);
   }
 
   /**
@@ -666,6 +664,9 @@ class CRM_Group_Page_AjaxTest extends CiviUnitTestCase {
    * @param array $currentGroups
    */
   public function hook_civicrm_aclGroup($type, $contactID, $tableName, &$allGroups, &$currentGroups) {
+    if ($tableName !== 'civicrm_group') {
+      return;
+    }
     //don't use api - you will get a loop
     $sql = " SELECT * FROM civicrm_group WHERE name LIKE '%pick%'";
     $groups = [];
@@ -723,10 +724,10 @@ class CRM_Group_Page_AjaxTest extends CiviUnitTestCase {
       ) VALUES (55, 'civicrm_group', $groupId, 1);
     ");
     // Put the user into this group
-    $this->_loggedInUser = CRM_Core_Session::singleton()->get('userID');
+    $loggedInUser = CRM_Core_Session::singleton()->get('userID');
     $this->callAPISuccess('group_contact', 'create', [
       'group_id' => $groupId,
-      'contact_id' => $this->_loggedInUser,
+      'contact_id' => $loggedInUser,
     ]);
     // Add the ACL
     CRM_Core_DAO::executeQuery("
@@ -734,7 +735,7 @@ class CRM_Group_Page_AjaxTest extends CiviUnitTestCase {
       `name`, `entity_table`, `entity_id`, `operation`, `object_table`, `object_id`, `is_active`
       )
       VALUES (
-      'core-580', 'civicrm_acl_role', 55, 'Edit', 'civicrm_saved_search', 0, 1
+      'core-580', 'civicrm_acl_role', 55, 'Edit', 'civicrm_group', 0, 1
       );
       ");
 

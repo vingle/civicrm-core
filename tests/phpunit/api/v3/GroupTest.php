@@ -127,7 +127,7 @@ class api_v3_GroupTest extends CiviUnitTestCase {
     $params = [
       'name' => "Test Group 1",
     ];
-    $group = $this->callAPIAndDocument('group', 'get', $params, __FUNCTION__, __FILE__);
+    $group = $this->callAPISuccess('group', 'get', $params);
     $group = $group['values'];
 
     foreach ($group as $v) {
@@ -242,13 +242,16 @@ class api_v3_GroupTest extends CiviUnitTestCase {
 
   /**
    * Test that an array of valid values works for group_type field.
-   * FIXME: Api4
+   * @var int $version
+   * @dataProvider versionThreeAndFour
    */
-  public function testGroupTypeWithPseudoconstantArray() {
+  public function testGroupTypeWithPseudoconstantArray($version) {
+    $this->_apiversion = $version;
+    $groupType = $version == 3 ? 'group_type' : 'group_type:name';
     $params = [
       'name' => 'Test Group 2',
       'title' => 'Test Group 2',
-      'group_type' => ['Mailing List', 'Access Control'],
+      $groupType => ['Mailing List', 'Access Control'],
       'sequential' => 1,
     ];
     $group = $this->callAPISuccess('Group', 'create', $params);
@@ -263,12 +266,14 @@ class api_v3_GroupTest extends CiviUnitTestCase {
    * Per https://lab.civicrm.org/dev/core/issues/1321 the group_type filter is deceptive
    * - it only filters on exact match not 'is one of'.
    *
-   * @throws \CRM_Core_Exception
    */
-  public function testGroupWithGroupTypeFilter() {
-    $this->groupCreate(['group_type' => ['Access Control'], 'name' => 'access_list', 'title' => 'access list']);
-    $this->groupCreate(['group_type' => ['Mailing List'], 'name' => 'mailing_list', 'title' => 'mailing list']);
-    $this->groupCreate(['group_type' => ['Access Control', 'Mailing List'], 'name' => 'group', 'title' => 'group']);
+  public function testGroupWithGroupTypeFilter(): void {
+    // Note that calling the api v3 actually creates groups incorrectly - it the
+    // separator is SEPARATOR_BOOKEND but api v3 just saves the integer for only one.
+    // If you fix that this test fails.... make of that what you will...
+    $this->callAPISuccess('Group', 'create', ['group_type' => ['Access Control'], 'name' => 'access_list', 'title' => 'access list']);
+    $this->callAPISuccess('Group', 'create', ['group_type' => ['Mailing List'], 'name' => 'mailing_list', 'title' => 'mailing list']);
+    $this->callAPISuccess('Group', 'create', ['group_type' => ['Access Control', 'Mailing List'], 'name' => 'group', 'title' => 'group']);
     $group = $this->callAPISuccessGetSingle('Group', ['return' => 'id,title,group_type', 'group_type' => 'Mailing List']);
     $this->assertEquals('mailing list', $group['title']);
   }
@@ -303,9 +308,8 @@ class api_v3_GroupTest extends CiviUnitTestCase {
    */
   public function testgetfields($version) {
     $this->_apiversion = $version;
-    $description = "Demonstrate use of getfields to interrogate api.";
     $params = ['action' => 'create'];
-    $result = $this->callAPIAndDocument('group', 'getfields', $params, __FUNCTION__, __FILE__, $description);
+    $result = $this->callAPISuccess('group', 'getfields', $params);
     $this->assertEquals('is_active', $result['values']['is_active']['name']);
   }
 
@@ -359,8 +363,10 @@ class api_v3_GroupTest extends CiviUnitTestCase {
    * @param array $ids
    */
   public function aclGroupAllGroups($type, $contactID, $tableName, $allGroups, &$ids) {
-    $group = $this->callAPISuccess('Group', 'get', ['name' => 'Test Group 1']);
-    $ids = array_keys($group['values']);
+    if ($tableName === 'civicrm_group') {
+      $group = $this->callAPISuccess('Group', 'get', ['name' => 'Test Group 1']);
+      $ids = array_keys($group['values']);
+    }
   }
 
 }

@@ -12,8 +12,8 @@ class CRM_Utils_API_MatchOptionTest extends CiviUnitTestCase {
   public $noise;
 
   public function setUp(): void {
-    $this->useTransaction();
     parent::setUp();
+    $this->useTransaction();
     $this->assertDBQuery(0, "SELECT count(*) FROM civicrm_contact WHERE first_name='Jeffrey' and last_name='Lebowski'");
 
     // Create noise to ensure we don't accidentally/coincidentally match the first record
@@ -39,7 +39,7 @@ class CRM_Utils_API_MatchOptionTest extends CiviUnitTestCase {
       $this->assertEquals('ignore1@example.com', $value['email']);
       $this->assertEquals(1, count($value['api.Address.get']['values']));
     }
-    CRM_core_DAO::executeQuery('DELETE FROM civicrm_address WHERE contact_id=%1', [
+    CRM_Core_DAO::executeQuery('DELETE FROM civicrm_address WHERE contact_id=%1', [
       1 => [$this->noise['individual'], 'Positive'],
     ]);
     $this->callAPISuccess('Contact', 'delete', [

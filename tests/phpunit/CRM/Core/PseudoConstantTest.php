@@ -73,6 +73,7 @@ class CRM_Core_PseudoConstantTest extends CiviUnitTestCase {
       'domain_id' => 1,
       'payment_processor_type_id' => 'Dummy',
       'name' => $pp_name,
+      'title' => $pp_name,
       'user_name' => $pp_name,
       'class_name' => 'Payment_Dummy',
       'url_site' => 'https://test.com/',
@@ -187,19 +188,23 @@ class CRM_Core_PseudoConstantTest extends CiviUnitTestCase {
         ],
         [
           'fieldName' => 'start_action_unit',
-          'sample' => 'hour',
+          'sample' => 'hours',
         ],
         [
           'fieldName' => 'repetition_frequency_unit',
-          'sample' => 'hour',
+          'sample' => 'hours',
         ],
         [
           'fieldName' => 'end_frequency_unit',
-          'sample' => 'hour',
+          'sample' => 'hours',
         ],
         [
           'fieldName' => 'mode',
           'sample' => 'Email',
+        ],
+        [
+          'fieldName' => 'mapping_id',
+          'sample' => 'Event Type',
         ],
       ],
       'CRM_Dedupe_DAO_DedupeRuleGroup' => [
@@ -309,7 +314,7 @@ class CRM_Core_PseudoConstantTest extends CiviUnitTestCase {
         ],
         [
           'fieldName' => 'extends',
-          'sample' => 'CiviEvent',
+          'sample' => 'Event',
         ],
         [
           'fieldName' => 'financial_type_id',
@@ -694,10 +699,6 @@ class CRM_Core_PseudoConstantTest extends CiviUnitTestCase {
           'max' => 250,
         ],
         [
-          'fieldName' => 'preferred_mail_format',
-          'sample' => 'Text',
-        ],
-        [
           'fieldName' => 'communication_style_id',
           'sample' => 'Formal',
         ],
@@ -800,11 +801,11 @@ class CRM_Core_PseudoConstantTest extends CiviUnitTestCase {
       'CRM_Member_DAO_MembershipStatus' => [
         [
           'fieldName' => 'start_event',
-          'sample' => 'start date',
+          'sample' => 'Membership Start Date',
         ],
         [
           'fieldName' => 'end_event',
-          'sample' => 'member since',
+          'sample' => 'Member Since',
         ],
         [
           'fieldName' => 'start_event_adjust_unit',
