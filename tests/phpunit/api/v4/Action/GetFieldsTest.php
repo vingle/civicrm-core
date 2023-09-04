@@ -21,10 +21,14 @@ namespace api\v4\Action;
 
 use api\v4\Api4TestBase;
 use Civi\Api4\Activity;
+use Civi\Api4\Address;
 use Civi\Api4\Campaign;
 use Civi\Api4\Contact;
 use Civi\Api4\Contribution;
+use Civi\Api4\CustomGroup;
+use Civi\Api4\Email;
 use Civi\Api4\EntityTag;
+use Civi\Api4\UserJob;
 use Civi\Api4\Utils\CoreUtil;
 use Civi\Test\TransactionalInterface;
 
@@ -38,7 +42,7 @@ class GetFieldsTest extends Api4TestBase implements TransactionalInterface {
     parent::setUp();
   }
 
-  public function testOptionsAreReturned() {
+  public function testOptionsAreReturned(): void {
     $fields = Contact::getFields(FALSE)
       ->execute()
       ->indexBy('name');
@@ -53,7 +57,7 @@ class GetFieldsTest extends Api4TestBase implements TransactionalInterface {
     $this->assertFalse($fields['first_name']['options']);
   }
 
-  public function testContactGetFields() {
+  public function testContactGetFields(): void {
     $fields = Contact::getFields(FALSE)
       ->execute()
       ->indexBy('name');
@@ -66,7 +70,7 @@ class GetFieldsTest extends Api4TestBase implements TransactionalInterface {
     $this->assertEquals(['name', 'label', 'icon'], $fields['contact_sub_type']['suffixes']);
   }
 
-  public function testComponentFields() {
+  public function testComponentFields(): void {
     \CRM_Core_BAO_ConfigSetting::disableComponent('CiviCampaign');
     $fields = \Civi\Api4\Event::getFields()
       ->addWhere('name', 'CONTAINS', 'campaign')
@@ -79,7 +83,21 @@ class GetFieldsTest extends Api4TestBase implements TransactionalInterface {
     $this->assertCount(1, $fields);
   }
 
-  public function testInternalPropsAreHidden() {
+  public function testEmailFields(): void {
+    $getFields = Email::getFields(FALSE)
+      ->setAction('get')
+      ->execute()->indexBy('name');
+
+    $this->assertEquals('Text', $getFields['email']['input_type']);
+
+    $createFields = Email::getFields(FALSE)
+      ->setAction('create')
+      ->execute()->indexBy('name');
+
+    $this->assertEquals('Email', $createFields['email']['input_type']);
+  }
+
+  public function testInternalPropsAreHidden(): void {
     // Public getFields should not contain @internal props
     $fields = Contact::getFields(FALSE)
       ->execute();
@@ -94,7 +112,7 @@ class GetFieldsTest extends Api4TestBase implements TransactionalInterface {
     }
   }
 
-  public function testPrefetchDisabled() {
+  public function testPrefetchDisabled(): void {
     \CRM_Core_BAO_ConfigSetting::enableComponent('CiviContribute');
     \CRM_Core_BAO_ConfigSetting::enableComponent('CiviCampaign');
     Campaign::create()->setValues(['name' => 'Big Campaign', 'title' => 'Biggie'])->execute();
@@ -107,7 +125,7 @@ class GetFieldsTest extends Api4TestBase implements TransactionalInterface {
     $this->assertEquals(['name', 'label'], $fields['campaign_id']['suffixes']);
   }
 
-  public function testRequiredAndNullableAndDeprecated() {
+  public function testRequiredAndNullableAndDeprecated(): void {
     $actFields = Activity::getFields(FALSE)
       ->setAction('create')
       ->execute()->indexBy('name');
@@ -121,17 +139,31 @@ class GetFieldsTest extends Api4TestBase implements TransactionalInterface {
     $this->assertTrue($actFields['phone_id']['deprecated']);
   }
 
-  public function testGetSuffixes() {
+  public function testGetSuffixes(): void {
     $actFields = Activity::getFields(FALSE)
       ->execute()->indexBy('name');
-
     $this->assertEquals(['name', 'label', 'description'], $actFields['engagement_level']['suffixes']);
     $this->assertEquals(['name', 'label', 'description', 'icon'], $actFields['activity_type_id']['suffixes']);
     $this->assertEquals(['name', 'label', 'description', 'color'], $actFields['status_id']['suffixes']);
     $this->assertEquals(['name', 'label', 'description', 'color'], $actFields['tags']['suffixes']);
+
+    $addressFields = Address::getFields(FALSE)
+      ->execute()->indexBy('name');
+    $this->assertEquals(['label', 'abbr'], $addressFields['country_id']['suffixes']);
+    $this->assertEquals(['label', 'abbr'], $addressFields['county_id']['suffixes']);
+    $this->assertEquals(['label', 'abbr'], $addressFields['state_province_id']['suffixes']);
+
+    $customGroupFields = CustomGroup::getFields(FALSE)
+      ->execute()->indexBy('name');
+    $this->assertEquals(['name', 'label', 'grouping'], $customGroupFields['extends']['suffixes']);
+    $this->assertEquals(['name', 'label', 'grouping'], $customGroupFields['extends_entity_column_id']['suffixes']);
+
+    $userJobFields = UserJob::getFields(FALSE)
+      ->execute()->indexBy('name');
+    $this->assertEquals(['name', 'label', 'url'], $userJobFields['job_type']['suffixes']);
   }
 
-  public function testDynamicFks() {
+  public function testDynamicFks(): void {
     $tagFields = EntityTag::getFields(FALSE)
       ->execute()->indexBy('name');
     $this->assertEmpty($tagFields['entity_id']['fk_entity']);

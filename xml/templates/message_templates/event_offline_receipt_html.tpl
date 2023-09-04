@@ -22,8 +22,8 @@
    <td>
     {assign var="greeting" value="{contact.email_greeting_display}"}{if $greeting}<p>{$greeting},</p>{/if}
 
-    {if {event.confirm_email_text|boolean} AND (empty($isOnWaitlist) AND empty($isRequireApproval))}
-     <p>{event.confirm_email_text}</p>
+    {if !empty($event.confirm_email_text) AND (empty($isOnWaitlist) AND empty($isRequireApproval))}
+     <p>{$event.confirm_email_text}</p>
     {/if}
 
     {if !empty($isOnWaitlist)}
@@ -427,79 +427,6 @@
       {/if}
 
      {/if} {* End of conditional section for Paid events *}
-
-     {if !empty($customPre)}
-      <tr>
-       <th {$headerStyle}>
-        {$customPre_grouptitle}
-       </th>
-      </tr>
-      {foreach from=$customPre item=value key=customName}
-       {if ( !empty($trackingFields) and ! in_array( $customName, $trackingFields ) ) or empty($trackingFields)}
-        <tr>
-         <td {$labelStyle}>
-          {$customName}
-         </td>
-         <td {$valueStyle}>
-          {$value}
-         </td>
-        </tr>
-       {/if}
-      {/foreach}
-     {/if}
-
-     {if !empty($customPost)}
-      <tr>
-       <th {$headerStyle}>
-        {$customPost_grouptitle}
-       </th>
-      </tr>
-      {foreach from=$customPost item=value key=customName}
-       {if ( !empty($trackingFields) and ! in_array( $customName, $trackingFields ) ) or empty($trackingFields)}
-        <tr>
-         <td {$labelStyle}>
-          {$customName}
-         </td>
-         <td {$valueStyle}>
-          {$value}
-         </td>
-        </tr>
-       {/if}
-      {/foreach}
-     {/if}
-
-     {if !empty($customProfile)}
-      {foreach from=$customProfile item=value key=customName}
-       <tr>
-        <th {$headerStyle}>
-         {ts 1=$customName+1}Participant Information - Participant %1{/ts}
-        </th>
-       </tr>
-       {foreach from=$value item=val key=field}
-        {if $field eq 'additionalCustomPre' or $field eq 'additionalCustomPost'}
-         <tr>
-          <td colspan="2" {$labelStyle}>
-           {if $field eq 'additionalCustomPre'}
-            {$additionalCustomPre_grouptitle}
-           {else}
-            {$additionalCustomPost_grouptitle}
-           {/if}
-          </td>
-         </tr>
-         {foreach from=$val item=v key=f}
-          <tr>
-           <td {$labelStyle}>
-            {$f}
-           </td>
-           <td {$valueStyle}>
-            {$v}
-           </td>
-          </tr>
-         {/foreach}
-        {/if}
-       {/foreach}
-      {/foreach}
-     {/if}
 
      {if !empty($customGroup)}
       {foreach from=$customGroup item=value key=customName}

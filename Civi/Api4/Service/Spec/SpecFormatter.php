@@ -72,16 +72,22 @@ class SpecFormatter {
         if (($data['pseudoconstant']['prefetch'] ?? NULL) !== 'disabled') {
           $field->setOptionsCallback([__CLASS__, 'getOptions']);
         }
-        // These suffixes are always supported if a field has options
-        $suffixes = ['name', 'label'];
-        // Add other columns specified in schema (e.g. 'abbrColumn')
-        foreach (array_diff(FormattingUtil::$pseudoConstantSuffixes, $suffixes) as $suffix) {
-          if (!empty($data['pseudoconstant'][$suffix . 'Column'])) {
-            $suffixes[] = $suffix;
-          }
+        // Explicitly declared suffixes
+        if (!empty($data['pseudoconstant']['suffixes'])) {
+          $suffixes = $data['pseudoconstant']['suffixes'];
         }
-        if (!empty($data['pseudoconstant']['optionGroupName'])) {
-          $suffixes = CoreUtil::getOptionValueFields($data['pseudoconstant']['optionGroupName'], 'name');
+        else {
+          // These suffixes are always supported if a field has options
+          $suffixes = ['name', 'label'];
+          // Add other columns specified in schema (e.g. 'abbrColumn')
+          foreach (array_diff(FormattingUtil::$pseudoConstantSuffixes, $suffixes) as $suffix) {
+            if (!empty($data['pseudoconstant'][$suffix . 'Column'])) {
+              $suffixes[] = $suffix;
+            }
+          }
+          if (!empty($data['pseudoconstant']['optionGroupName'])) {
+            $suffixes = CoreUtil::getOptionValueFields($data['pseudoconstant']['optionGroupName'], 'name');
+          }
         }
         $field->setSuffixes($suffixes);
       }
@@ -276,6 +282,7 @@ class SpecFormatter {
     $map = [
       'Select Date' => 'Date',
       'Link' => 'Url',
+      'Autocomplete-Select' => 'EntityRef',
     ];
     $inputType = $map[$inputType] ?? $inputType;
     if ($dataTypeName === 'ContactReference' || $dataTypeName === 'EntityReference') {
@@ -334,6 +341,11 @@ class SpecFormatter {
         }
         $inputAttrs['filter'] = $filters;
       }
+    }
+    // Custom autocompletes
+    if (!empty($data['option_group_id']) && $inputType === 'EntityRef') {
+      $fieldSpec->setFkEntity('OptionValue');
+      $inputAttrs['filter']['option_group_id'] = $data['option_group_id'];
     }
     $fieldSpec
       ->setInputType($inputType)

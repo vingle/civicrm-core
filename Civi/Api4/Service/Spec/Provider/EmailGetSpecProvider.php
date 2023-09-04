@@ -15,26 +15,31 @@ namespace Civi\Api4\Service\Spec\Provider;
 use Civi\Api4\Service\Spec\RequestSpec;
 
 /**
+ * This applies to all entities with an email field.
+ *
+ * In the contact of "get", email validation doesn't make sense so change it to text.
+ *
  * @service
  * @internal
  */
-class CustomGroupSpecProvider extends \Civi\Core\Service\AutoService implements Generic\SpecProviderInterface {
+class EmailGetSpecProvider extends \Civi\Core\Service\AutoService implements Generic\SpecProviderInterface {
 
   /**
    * @inheritDoc
    */
   public function modifySpec(RequestSpec $spec) {
-    $action = $spec->getAction();
-
-    $spec->getFieldByName('extends')
-      ->setSuffixes(['name', 'label', 'grouping']);
+    foreach ($spec->getFields() as $field) {
+      if ($field->getInputType() === 'Email') {
+        $field->setInputType('Text');
+      }
+    }
   }
 
   /**
    * @inheritDoc
    */
   public function applies($entity, $action) {
-    return $entity === 'CustomGroup';
+    return $action === 'get';
   }
 
 }

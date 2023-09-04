@@ -179,7 +179,7 @@ class api_v3_GroupTest extends CiviUnitTestCase {
    * Test Group create with Group Type and Parent
    * FIXME: Api4
    */
-  public function testGroupCreateWithTypeAndParent() {
+  public function testGroupCreateWithTypeAndParent(): void {
     $params = [
       'name' => 'Test Group type',
       'title' => 'Test Group Type',
@@ -313,7 +313,7 @@ class api_v3_GroupTest extends CiviUnitTestCase {
     $this->assertEquals('is_active', $result['values']['is_active']['name']);
   }
 
-  public function testIllegalParentsParams() {
+  public function testIllegalParentsParams(): void {
     $params = [
       'title' => 'Test illegal Group',
       'domain_id' => 1,
@@ -349,7 +349,7 @@ class api_v3_GroupTest extends CiviUnitTestCase {
     CRM_Core_Config::singleton()->userPermissionClass->permissions = ['access CiviCRM'];
     $this->callAPISuccessGetCount('Group', ['check_permissions' => 1], 0);
     $this->hookClass->setHook('civicrm_aclGroup', [$this, 'aclGroupAllGroups']);
-    unset(Civi::$statics['CRM_ACL_API']['group_permission']);
+    unset(Civi::$statics['CRM_ACL_API']);
     $this->callAPISuccessGetCount('Group', ['check_permissions' => 1], 1);
   }
 

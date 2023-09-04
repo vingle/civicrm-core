@@ -44,6 +44,39 @@ class PhpStormMetadata {
     $this->buffer = '';
   }
 
+  public function registerArgumentsSet(string $name, ...$args) {
+    $escapedName = var_export($name, 1);
+    $escapedArgs = implode(', ', array_map(function($arg) {
+      return var_export($arg, 1);
+    }, $args));
+    $this->buffer .= "registerArgumentsSet($escapedName, $escapedArgs);\n";
+    return $this;
+  }
+
+  /**
+   * @param string $for
+   *   Ex: '\Civi\Core\SettingsBag::get()'
+   * @param int $index
+   *   The positional offset among the arguments
+   * @param string $argumentSet
+   *   Name of the argument set. (This should already be defined by `registerArgumentsSet()`.)
+   * @return $this
+   */
+  public function addExpectedArguments(string $for, int $index, string $argumentSet) {
+    $escapedSet = var_export($argumentSet, 1);
+    $this->buffer .= "expectedArguments($for, $index, argumentsSet($escapedSet));\n";
+    return $this;
+  }
+
+  /**
+   * @param string $for
+   * @return $this
+   */
+  public function addExitPoint(string $for) {
+    $this->buffer .= "exitPoint($for);\n";
+    return $this;
+  }
+
   /**
    * @param string $for
    * @param array $map
@@ -65,6 +98,9 @@ class PhpStormMetadata {
    */
   public function write(): void {
     $path = phpstorm_metadata_dir();
+    if ($path === NULL) {
+      return;
+    }
 
     if (file_exists($path) && !is_dir($path)) {
       unlink($path);

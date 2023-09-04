@@ -1,5 +1,7 @@
 <?php
 
+use Civi\Test\FormTrait;
+
 /**
  *  Test CRM_Event_Form_Registration functions.
  *
@@ -10,10 +12,12 @@ class CRM_Event_Form_Registration_ConfirmTest extends CiviUnitTestCase {
 
   use CRMTraits_Financial_PriceSetTrait;
   use CRMTraits_Profile_ProfileTrait;
+  use FormTrait;
 
-  public function setUp(): void {
-    parent::setUp();
-    $this->useTransaction();
+  public function tearDown(): void {
+    $this->revertTemplateToReservedTemplate();
+    $this->quickCleanUpFinancialEntities();
+    parent::tearDown();
   }
 
   /**
@@ -41,73 +45,46 @@ class CRM_Event_Form_Registration_ConfirmTest extends CiviUnitTestCase {
    * @dataProvider getThousandSeparators
    */
   public function testPaidSubmit(string $thousandSeparator): void {
-    // @todo - figure out why this doesn't pass validate financials
-    $this->isValidateFinancialsOnPostAssert = FALSE;
     $this->setCurrencySeparators($thousandSeparator);
     $mut = new CiviMailUtils($this);
     $paymentProcessorID = $this->processorCreate();
     /** @var \CRM_Core_Payment_Dummy $processor */
     $processor = Civi\Payment\System::singleton()->getById($paymentProcessorID);
     $processor->setDoDirectPaymentResult(['fee_amount' => 1.67]);
-    $event = $this->eventCreatePaid();
-    $individualID = $this->individualCreate();
-    CRM_Event_Form_Registration_Confirm::testSubmit([
-      'id' => $event['id'],
-      'contributeMode' => 'direct',
-      'registerByID' => $individualID,
-      'paymentProcessorObj' => CRM_Financial_BAO_PaymentProcessor::getPayment($paymentProcessorID),
-      'totalAmount' => 8000.67,
-      'params' => [
-        [
-          'first_name' => 'k',
-          'last_name' => 'p',
-          'email-Primary' => 'demo@example.com',
-          'hidden_processor' => '1',
-          'credit_card_number' => '4111111111111111',
-          'cvv2' => '123',
-          'credit_card_exp_date' => [
-            'M' => '1',
-            'Y' => date('Y') + 1,
-          ],
-          'credit_card_type' => 'Visa',
-          'billing_first_name' => 'p',
-          'billing_middle_name' => '',
-          'billing_last_name' => 'p',
-          'billing_street_address-5' => 'p',
-          'billing_city-5' => 'p',
-          'billing_state_province_id-5' => '1061',
-          'billing_postal_code-5' => '7',
-          'billing_country_id-5' => '1228',
-          'priceSetId' => '6',
-          'price_7' => [
-            13 => 1,
-          ],
-          'payment_processor_id' => $paymentProcessorID,
-          'bypass_payment' => '',
-          'is_primary' => 1,
-          'is_pay_later' => 0,
-          'campaign_id' => NULL,
-          'defaultRole' => 1,
-          'participant_role_id' => '1',
-          'currencyID' => 'USD',
-          'amount_level' => 'Tiny-tots (ages 5-8) - 1',
-          'amount' => $this->formatMoneyInput(8000.67),
-          'tax_amount' => NULL,
-          'year' => '2019',
-          'month' => '1',
-          'ip_address' => '127.0.0.1',
-          'invoiceID' => '57adc34957a29171948e8643ce906332',
-          'button' => '_qf_Register_upload',
-          'billing_state_province-5' => 'AP',
-          'billing_country-5' => 'US',
-        ],
+    $event = $this->eventCreatePaid(['payment_processor' => [$paymentProcessorID]]);
+    $this->submitForm($event['id'], [
+      'first_name' => 'k',
+      'last_name' => 'p',
+      'email-Primary' => 'demo@example.com',
+      'hidden_processor' => '1',
+      'credit_card_number' => '4111111111111111',
+      'cvv2' => '123',
+      'credit_card_exp_date' => [
+        'M' => '1',
+        'Y' => date('Y') + 1,
       ],
+      'credit_card_type' => 'Visa',
+      'billing_first_name' => 'p',
+      'billing_middle_name' => '',
+      'billing_last_name' => 'p',
+      'billing_street_address-5' => 'p',
+      'billing_city-5' => 'p',
+      'billing_state_province_id-5' => '1061',
+      'billing_postal_code-5' => '7',
+      'billing_country_id-5' => '1228',
+      'priceSetId' => $this->getPriceSetID('PaidEvent'),
+      'price_' . $this->getPriceFieldID('PaidEvent') => $this->ids['PriceFieldValue']['PaidEvent_standard'],
+      'payment_processor_id' => $paymentProcessorID,
+      'year' => '2019',
+      'month' => '1',
+      'billing_state_province-5' => 'AP',
+      'billing_country-5' => 'US',
     ]);
     $this->callAPISuccessGetCount('Participant', [], 1);
     $contribution = $this->callAPISuccessGetSingle('Contribution', []);
-    $this->assertEquals(8000.67, $contribution['total_amount']);
+    $this->assertEquals(300, $contribution['total_amount']);
     $this->assertEquals(1.67, $contribution['fee_amount']);
-    $this->assertEquals(7999, $contribution['net_amount']);
+    $this->assertEquals(298.33, $contribution['net_amount']);
     $this->assertNotEmpty($contribution['receipt_date']);
     $this->assertNotContains(' (multiple participants)', $contribution['amount_level']);
     $lastFinancialTrxnId = CRM_Core_BAO_FinancialTrxn::getFinancialTrxnId($contribution['id'], 'DESC');
@@ -134,7 +111,7 @@ class CRM_Event_Form_Registration_ConfirmTest extends CiviUnitTestCase {
       'entity_table' => 'civicrm_contribution',
       'entity_id' => $contribution['id'],
       'financial_trxn_id' => $financialTrxn['id'],
-      'amount' => '8000.67',
+      'amount' => '300.00',
     ], $entityFinancialTrxns[0], ['id']);
 
     $this->assertAPIArrayComparison([
@@ -314,67 +291,40 @@ class CRM_Event_Form_Registration_ConfirmTest extends CiviUnitTestCase {
    * @throws \CRM_Core_Exception
    */
   public function testTaxMultipleParticipant(): void {
-    // @todo - figure out why this doesn't pass validate financials
-    $this->isValidateFinancialsOnPostAssert = FALSE;
-    $mut = new CiviMailUtils($this);
-    $event = $this->eventCreatePaid();
     $this->swapMessageTemplateForTestTemplate('event_online_receipt', 'text');
-    CRM_Event_Form_Registration_Confirm::testSubmit([
-      'id' => $event['id'],
-      'contributeMode' => 'direct',
-      'registerByID' => $this->createLoggedInUser(),
-      'totalAmount' => 440,
-      'event' => $event,
-      'params' => [
-        [
-          'first_name' => 'Participant1',
-          'last_name' => 'LastName',
-          'email-Primary' => 'participant1@example.com',
-          'additional_participants' => 2,
-          'payment_processor_id' => 0,
-          'bypass_payment' => '',
-          'is_primary' => 1,
-          'is_pay_later' => 1,
-          'campaign_id' => NULL,
-          'defaultRole' => 1,
-          'participant_role_id' => '1',
-          'currencyID' => 'USD',
-          'amount_level' => 'Tiny-tots (ages 5-8) - 1',
-          'amount' => '100.00',
-          'tax_amount' => 10,
-          'ip_address' => '127.0.0.1',
-          'invoiceID' => '57adc34957a29171948e8643ce906332',
-          'trxn_id' => '123456789',
-          'button' => '_qf_Register_upload',
-        ],
-        [
-          'entryURL' => "http://dmaster.local/civicrm/event/register?reset=1&amp;id={$event['id']}",
-          'first_name' => 'Participant2',
-          'last_name' => 'LastName',
-          'email-Primary' => 'participant2@example.com',
-          'campaign_id' => NULL,
-          'is_pay_later' => 1,
-          'participant_role_id' => '1',
-          'currencyID' => 'USD',
-          'amount_level' => 'Tiny-tots (ages 9-18) - 1',
-          'amount' => '200.00',
-          'tax_amount' => 20,
-        ],
-        [
-          'entryURL' => "http://dmaster.local/civicrm/event/register?reset=1&amp;id={$event['id']}",
-          'first_name' => 'Participant3',
-          'last_name' => 'LastName',
-          'email-Primary' => 'participant3@example.com',
-          'campaign_id' => NULL,
-          'is_pay_later' => 1,
-          'participant_role_id' => '1',
-          'currencyID' => 'USD',
-          'amount_level' => 'Tiny-tots (ages 5-8) - 1',
-          'amount' => '100.00',
-          'tax_amount' => 10,
-        ],
-      ],
-    ]);
+
+    $mut = new CiviMailUtils($this);
+    $this->createLoggedInUser();
+    $this->eventCreatePaid();
+    $this->addTaxAccountToFinancialType(CRM_Core_PseudoConstant::getKey('CRM_Contribute_BAO_Contribution', 'financial_type_id', 'Event Fee'));
+    $this->getTestForm('CRM_Event_Form_Registration_Register', [
+      'first_name' => 'Participant1',
+      'last_name' => 'LastName',
+      'email-Primary' => 'participant1@example.com',
+      'additional_participants' => 2,
+      'payment_processor_id' => 0,
+      'priceSetId' => $this->getPriceSetID('PaidEvent'),
+      'price_' . $this->ids['PriceField']['PaidEvent'] => $this->ids['PriceFieldValue']['PaidEvent_standard'],
+      'defaultRole' => 1,
+      'participant_role_id' => '1',
+      'button' => '_qf_Register_upload',
+    ], ['id' => $this->getEventID()])
+      ->addSubsequentForm('CRM_Event_Form_Registration_AdditionalParticipant', [
+        'first_name' => 'Participant2',
+        'last_name' => 'LastName',
+        'email-Primary' => 'participant2@example.com',
+        'priceSetId' => $this->getPriceSetID('PaidEvent'),
+        'price_' . $this->ids['PriceField']['PaidEvent'] => $this->ids['PriceFieldValue']['PaidEvent_standard'],
+      ])->addSubsequentForm('CRM_Event_Form_Registration_AdditionalParticipant', [
+        'first_name' => 'Participant3',
+        'last_name' => 'LastName',
+        'email-Primary' => 'participant3@example.com',
+        'priceSetId' => $this->getPriceSetID('PaidEvent'),
+        'price_' . $this->ids['PriceField']['PaidEvent'] => $this->ids['PriceFieldValue']['PaidEvent_standard'],
+      ])
+      ->addSubsequentForm('CRM_Event_Form_Registration_Confirm')
+      ->processForm();
+
     $participants = $this->callAPISuccess('Participant', 'get', [])['values'];
     $this->assertCount(3, $participants);
     $contribution = $this->callAPISuccessGetSingle(
@@ -384,14 +334,16 @@ class CRM_Event_Form_Registration_ConfirmTest extends CiviUnitTestCase {
       ]
     );
     $this->assertContains(' (multiple participants)', $contribution['amount_level']);
-    $this->assertEquals(40, $contribution['tax_amount'], 'Invalid Tax amount.');
-    $this->assertEquals(440, $contribution['total_amount'], 'Invalid Tax amount.');
+    $this->assertEquals(90, $contribution['tax_amount'], 'Invalid Tax amount.');
+    $this->assertEquals(990, $contribution['total_amount'], 'Invalid Tax amount.');
     $mailSent = $mut->getAllMessages();
     $this->assertCount(3, $mailSent, 'Three mails should have been sent to the 3 participants.');
     $this->assertStringContainsString('contactID:::' . $contribution['contact_id'], $mailSent[0]);
     $this->assertStringContainsString('contactID:::' . ($contribution['contact_id'] + 1), $mailSent[1]);
 
-    $this->callAPISuccess('Payment', 'create', ['total_amount' => 100, 'payment_type_id' => 'Cash', 'contribution_id' => $contribution['id']]);
+    $this->validateAllContributions();
+    $this->validateAllPayments();
+    $this->callAPISuccess('Payment', 'create', ['total_amount' => 990, 'payment_type_id' => 'Cash', 'contribution_id' => $contribution['id']]);
     $mailSent = $mut->getAllMessages();
     $this->assertCount(6, $mailSent);
 
@@ -401,7 +353,6 @@ class CRM_Event_Form_Registration_ConfirmTest extends CiviUnitTestCase {
     $this->assertStringContainsString('contactID:::' . ($contribution['contact_id'] + 1), $mailSent[3]);
     $this->assertStringContainsString('contactID:::' . ($contribution['contact_id'] + 2), $mailSent[4]);
     $this->assertStringContainsString('contactID:::' . $contribution['contact_id'], $mailSent[5]);
-    $this->revertTemplateToReservedTemplate();
   }
 
   /**
@@ -720,6 +671,39 @@ class CRM_Event_Form_Registration_ConfirmTest extends CiviUnitTestCase {
       'billing_state_province-5' => 'AP',
       'billing_country-5' => 'US',
     ], $submitValues));
+  }
+
+  public function testRegistrationWithoutCiviContributeEnabled(): void {
+    $mut = new CiviMailUtils($this, TRUE);
+    $event = $this->eventCreateUnpaid([
+      'has_waitlist' => 1,
+      'max_participants' => 1,
+      'start_date' => 20351021,
+      'end_date' => 20351023,
+      'registration_end_date' => 20351015,
+    ]);
+    CRM_Core_BAO_ConfigSetting::disableComponent('CiviContribute');
+    $this->submitForm(
+      $event['id'], [
+        [
+          'first_name' => 'Bruce No Contribute',
+          'last_name' => 'Wayne',
+          'email-Primary' => 'bruce@gotham.com',
+          'is_primary' => 1,
+          'is_pay_later' => 0,
+          'campaign_id' => NULL,
+          'defaultRole' => 1,
+          'participant_role_id' => '1',
+          'button' => '_qf_Register_upload',
+        ],
+      ]
+    );
+    $mut->checkMailLog([
+      'Dear Bruce No Contribute,  Thank you for your registration.  This is a confirmation that your registration has been received and your status has been updated to Registered.',
+    ]);
+    $mut->stop();
+    $mut->clearMessages();
+    CRM_Core_BAO_ConfigSetting::enableComponent('CiviContribute');
   }
 
 }
