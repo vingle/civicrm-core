@@ -283,25 +283,21 @@ class CRM_Mailing_BAO_MailingJob extends CRM_Mailing_DAO_MailingJob {
 
   /**
    * before we run jobs, we need to split the jobs
+   *
    * @param int $offset
    * @param string|null $mode
    *   Either 'sms' or null
+   *
+   * @throws \CRM_Core_Exception
    */
-  public static function runJobs_pre($offset = 200, $mode = NULL) {
-    $job = new CRM_Mailing_BAO_MailingJob();
-
-    $jobTable = CRM_Mailing_DAO_MailingJob::getTableName();
-    $mailingTable = CRM_Mailing_DAO_Mailing::getTableName();
-
+  public static function runJobs_pre(int $offset = 200, $mode = NULL): void {
     $currentTime = date('YmdHis');
-    $mailingACL = CRM_Mailing_BAO_Mailing::mailingACL('m');
-
     $workflowClause = CRM_Mailing_BAO_MailingJob::workflowClause();
 
     $domainID = CRM_Core_Config::domainID();
 
     $modeClause = 'AND m.sms_provider_id IS NULL';
-    if ($mode == 'sms') {
+    if ($mode === 'sms') {
       $modeClause = 'AND m.sms_provider_id IS NOT NULL';
     }
 
@@ -309,8 +305,8 @@ class CRM_Mailing_BAO_MailingJob extends CRM_Mailing_DAO_MailingJob {
     // when the mailing is submitted or scheduled.
     $query = "
     SELECT   j.*
-      FROM   $jobTable     j,
-         $mailingTable m
+      FROM civicrm_mailing_job j,
+         civicrm_mailing m
      WHERE   m.id = j.mailing_id AND m.domain_id = {$domainID}
                  $workflowClause
                  $modeClause
@@ -323,7 +319,7 @@ class CRM_Mailing_BAO_MailingJob extends CRM_Mailing_DAO_MailingJob {
     ORDER BY j.scheduled_date,
          j.start_date";
 
-    $job->query($query);
+    $job = CRM_Core_DAO::executeQuery($query);
 
     // For each of the "Parent Jobs" we find, we split them into
     // X Number of child jobs
@@ -344,14 +340,14 @@ class CRM_Mailing_BAO_MailingJob extends CRM_Mailing_DAO_MailingJob {
         'id',
         TRUE
       );
-      if ($job->status != 'Scheduled') {
+      if ($job->status !== 'Scheduled') {
         $lock->release();
         continue;
       }
 
       $transaction = new CRM_Core_Transaction();
 
-      $job->split_job($offset);
+      self::split_job((int) $offset, (int) $job->id, (int) $job->mailing_id, $job->scheduled_date);
 
       // Update the status of the parent job
       self::create(['id' => $job->id, 'start_date' => date('YmdHis'), 'status' => 'Running']);
@@ -365,26 +361,27 @@ class CRM_Mailing_BAO_MailingJob extends CRM_Mailing_DAO_MailingJob {
   /**
    * Split the parent job into n number of child job based on an offset.
    * If null or 0 , we create only one child job
+   *
    * @param int $offset
+   * @param int $jobID
+   * @param int $mailingID
+   * @param string $scheduledDate
+   *
+   * @throws \Civi\Core\Exception\DBQueryException
    */
-  public function split_job($offset = 200) {
-    $recipient_count = CRM_Mailing_BAO_MailingRecipients::mailingSize($this->mailing_id);
-
-    $jobTable = CRM_Mailing_DAO_MailingJob::getTableName();
-
-    $dao = new CRM_Core_DAO();
-
-    $sql = "
+  private static function split_job(int $offset, int $jobID, int $mailingID, string $scheduledDate): void {
+    $recipient_count = CRM_Mailing_BAO_MailingRecipients::mailingSize($mailingID);
+    $sql = '
 INSERT INTO civicrm_mailing_job
 (`mailing_id`, `scheduled_date`, `status`, `job_type`, `parent_id`, `job_offset`, `job_limit`)
 VALUES (%1, %2, %3, %4, %5, %6, %7)
-";
+';
     $params = [
-      1 => [$this->mailing_id, 'Integer'],
-      2 => [$this->scheduled_date, 'String'],
+      1 => [$mailingID, 'Integer'],
+      2 => [$scheduledDate, 'String'],
       3 => ['Scheduled', 'String'],
       4 => ['child', 'String'],
-      5 => [$this->id, 'Integer'],
+      5 => [$jobID, 'Integer'],
       6 => [0, 'Integer'],
       7 => [$recipient_count, 'Integer'],
     ];
@@ -398,9 +395,9 @@ VALUES (%1, %2, %3, %4, %5, %6, %7)
     }
     else {
       // Creating 'child jobs'
-      $scheduled_unixtime = strtotime($this->scheduled_date);
-      for ($i = 0, $s = 0; $i < $recipient_count; $i = $i + $offset, $s++) {
-        $params[2][0] = date('Y-m-d H:i:s', $scheduled_unixtime + $s);
+      $scheduled_unix_time = strtotime($scheduledDate);
+      for ($i = 0, $s = 0; $i < $recipient_count; $i += $offset, $s++) {
+        $params[2][0] = date('Y-m-d H:i:s', $scheduled_unix_time + $s);
         $params[6][0] = $i;
         $params[7][0] = $offset;
         CRM_Core_DAO::executeQuery($sql, $params);

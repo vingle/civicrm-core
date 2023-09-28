@@ -32,7 +32,9 @@ return [
             'absolute_date',
           ],
           'orderBy' => [],
-          'where' => [],
+          'where' => [
+            ['used_for', 'IS EMPTY'],
+          ],
           'groupBy' => [],
           'join' => [],
           'having' => [],
@@ -185,10 +187,15 @@ return [
             'table-striped',
             'crm-sticky-header',
           ],
-          'addButton' => [
-            'path' => 'civicrm/admin/scheduleReminders/edit?reset=1&action=add',
-            'text' => E::ts('Add Scheduled Reminder'),
-            'icon' => 'fa-plus',
+          'toolbar' => [
+            [
+              'entity' => 'ActionSchedule',
+              'action' => 'add',
+              'target' => 'crm-popup',
+              'style' => 'primary',
+              'text' => E::ts('Add Scheduled Reminder'),
+              'icon' => 'fa-plus',
+            ],
           ],
         ],
         'acl_bypass' => FALSE,

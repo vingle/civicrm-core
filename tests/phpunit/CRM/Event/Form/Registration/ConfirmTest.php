@@ -10,6 +10,7 @@ use Civi\Test\FormTrait;
  */
 class CRM_Event_Form_Registration_ConfirmTest extends CiviUnitTestCase {
 
+  use CRMTraits_Event_ScenarioTrait;
   use CRMTraits_Financial_PriceSetTrait;
   use CRMTraits_Profile_ProfileTrait;
   use FormTrait;
@@ -24,15 +25,22 @@ class CRM_Event_Form_Registration_ConfirmTest extends CiviUnitTestCase {
    * Initial test of submit function.
    */
   public function testSubmit(): void {
-    $mut = new CiviMailUtils($this, TRUE);
     $this->submitPaidEvent();
-
-    $mut->checkMailLog([
+    $this->assertSentMailHasStrings([
       'Dear Kim,  Thank you for your registration.  This is a confirmation that your registration has been received and your status has been updated to Registered.',
       'Friday September 16th, 2022 12:00 PM-Saturday September 17th, 2022 12:00 PM',
+      'Add event to Google Calendar',
     ]);
-    $mut->stop();
-    $mut->clearMessages();
+  }
+
+  public function assertSentMailHasStrings(array $strings): void {
+    foreach ($strings as $string) {
+      $this->assertSentMailHasString($string);
+    }
+  }
+
+  public function assertSentMailHasString(string $string): void {
+    $this->assertStringContainsString($string, $this->sentMail[0]);
   }
 
   /**
@@ -133,156 +141,63 @@ class CRM_Event_Form_Registration_ConfirmTest extends CiviUnitTestCase {
       'Expires: January ' . (date('Y') + 1),
       'Visa',
       '************1111',
-      'This is a confirmation that your registration has been received and your status has been updated to <strong> Registered</strong>',
+      'This is a confirmation that your registration has been received and your status has been updated to<strong> Registered</strong>',
     ]);
     $mut->clearMessages();
   }
 
   /**
-   * Tests missing contactID when registering for paid event from waitlist
-   * https://github.com/civicrm/civicrm-core/pull/23358, https://lab.civicrm.org/extensions/stripe/-/issues/347
+   * Tests payment processor receives contactID when registering for paid event from waitlist.
    *
-   * @throws \CRM_Core_Exception
+   * https://github.com/civicrm/civicrm-core/pull/23358, https://lab.civicrm.org/extensions/stripe/-/issues/347
    */
   public function testWaitlistRegistrationContactIDParam(): void {
+    $this->hookClass->setHook('civicrm_alterPaymentProcessorParams', [$this, 'checkPaymentParameters']);
     $paymentProcessorID = $this->processorCreate();
-    /** @var \CRM_Core_Payment_Dummy $processor */
-    $processor = Civi\Payment\System::singleton()->getById($paymentProcessorID);
-    $processor->setDoDirectPaymentResult(['fee_amount' => 1.67]);
-    $params = ['financial_type_id' => 1];
-    $event = $this->eventCreatePaid($params, [['name' => 'test', 'amount' => 8000.67]]);
-    $individualID = $this->individualCreate();
-    //$this->submitForm($event['id'], [
-    $form = CRM_Event_Form_Registration_Confirm::testSubmit([
-      'id' => $this->getEventID(),
-      'contributeMode' => 'direct',
-      'registerByID' => $individualID,
-      'paymentProcessorObj' => CRM_Financial_BAO_PaymentProcessor::getPayment($paymentProcessorID),
-      'amount' => 8000.67,
-      'amount_level' => 'Tiny-tots (ages 5-8) - 1',
-      'params' => [
-        [
-          'first_name' => 'k',
-          'last_name' => 'p',
-          'email-Primary' => 'demo@example.com',
-          'hidden_processor' => '1',
-          'credit_card_number' => '4111111111111111',
-          'cvv2' => '123',
-          'credit_card_exp_date' => [
-            'M' => '1',
-            'Y' => date('Y') + 1,
-          ],
-          'credit_card_type' => 'Visa',
-          'billing_first_name' => 'p',
-          'billing_middle_name' => '',
-          'billing_last_name' => 'p',
-          'billing_street_address-5' => 'p',
-          'billing_city-5' => 'p',
-          'billing_state_province_id-5' => '1061',
-          'billing_postal_code-5' => '7',
-          'billing_country_id-5' => '1228',
-          'priceSetId' => '6',
-          'price_7' => [
-            13 => 1,
-          ],
-          'payment_processor_id' => $paymentProcessorID,
-          'bypass_payment' => '',
-          'is_primary' => 1,
-          'is_pay_later' => 0,
-          'contact_id' => $individualID,
-          'campaign_id' => NULL,
-          'defaultRole' => 1,
-          'participant_role_id' => '1',
-          'currencyID' => 'USD',
-          'amount_level' => 'Tiny-tots (ages 5-8) - 1',
-          'amount' => $this->formatMoneyInput(8000.67),
-          'tax_amount' => NULL,
-          'year' => '2019',
-          'month' => '1',
-          'ip_address' => '127.0.0.1',
-          'invoiceID' => '57adc34957a29171948e8643ce906332',
-          'button' => '_qf_Register_upload',
-          'billing_state_province-5' => 'AP',
-          'billing_country-5' => 'US',
-        ],
-      ],
-    ]);
-    $this->callAPISuccessGetCount('Participant', [], 1);
-
-    $value = $form->get('value');
-    $this->assertArrayHasKey('contact_id', $value, 'contact_id missing in $value array');
-    $this->assertEquals($value['contact_id'], $individualID, 'Invalid contact_id in $value array.');
-
+    $event = $this->eventCreatePaid(['payment_processor' => [$paymentProcessorID]]);
+    $_REQUEST['mode'] = 'live';
     // Add someone to the waitlist.
-    $waitlistContactId = $this->individualCreate();
-    $waitlistContact   = $this->callAPISuccess('Contact', 'getsingle', ['id' => $waitlistContactId]);
-    $waitlistParticipantId = $this->participantCreate(['event_id' => $event['id'], 'contact_id' => $waitlistContactId, 'status_id' => 'On waitlist']);
+    $waitlistContactID = $this->individualCreate();
+    $waitlistParticipantID = $this->participantCreate(['event_id' => $event['id'], 'contact_id' => $waitlistContactID, 'status_id' => 'On waitlist']);
 
-    $waitlistParticipant = $this->callAPISuccess('Participant', 'getsingle', ['id' => $waitlistParticipantId, 'return' => ['participant_status']]);
+    $waitlistParticipant = $this->callAPISuccess('Participant', 'getsingle', ['id' => $waitlistParticipantID, 'return' => ['participant_status']]);
     $this->assertEquals('On waitlist', $waitlistParticipant['participant_status'], 'Invalid participant status. Expecting: On waitlist');
-
-    $form = CRM_Event_Form_Registration_Confirm::testSubmit([
-      'id' => $this->getEventID(),
-      'contributeMode' => 'direct',
-      'registerByID' => $waitlistContactId,
-      'paymentProcessorObj' => CRM_Financial_BAO_PaymentProcessor::getPayment($paymentProcessorID),
-      'amount' => 8000.67,
-      'amount_level' => 'Tiny-tots (ages 5-8) - 1',
-      'params' => [
-        [
-          'first_name' => $waitlistContact['first_name'],
-          'last_name' => $waitlistContact['last_name'],
-          'email-Primary' => $waitlistContact['email'],
-          'hidden_processor' => '1',
-          'credit_card_number' => '4111111111111111',
-          'cvv2' => '123',
-          'credit_card_exp_date' => [
-            'M' => '1',
-            'Y' => date('Y') + 1,
-          ],
-          'credit_card_type' => 'Visa',
-          'billing_first_name' => $waitlistContact['first_name'],
-          'billing_middle_name' => '',
-          'billing_last_name' => $waitlistContact['last_name'],
-          'billing_street_address-5' => 'p',
-          'billing_city-5' => 'p',
-          'billing_state_province_id-5' => '1061',
-          'billing_postal_code-5' => '7',
-          'billing_country_id-5' => '1228',
-          'priceSetId' => '6',
-          'price_7' => [
-            13 => 1,
-          ],
-          'payment_processor_id' => $paymentProcessorID,
-          'bypass_payment' => '',
-          'is_primary' => 1,
-          'is_pay_later' => 0,
-          'participant_id' => $waitlistParticipantId,
-          'campaign_id' => NULL,
-          'defaultRole' => 1,
-          'participant_role_id' => '1',
-          'currencyID' => 'USD',
-          'amount_level' => 'Tiny-tots (ages 5-8) - 1',
-          'amount' => $this->formatMoneyInput(8000.67),
-          'tax_amount' => NULL,
-          'year' => '2019',
-          'month' => '1',
-          'ip_address' => '127.0.0.1',
-          'invoiceID' => '68adc34957a29171948e8643ce906332',
-          'button' => '_qf_Register_upload',
-          'billing_state_province-5' => 'AP',
-          'billing_country-5' => 'US',
-        ],
+    $this->submitForm($this->getEventID(), [
+      'first_name' => 'bob',
+      'last_name' => 'smith',
+      'email-Primary' => 'bob@example.com',
+      'credit_card_number' => '4111111111111111',
+      'cvv2' => '123',
+      'credit_card_exp_date' => [
+        'M' => '1',
+        'Y' => date('Y') + 1,
       ],
+      'credit_card_type' => 'Visa',
+      'billing_first_name' => 'Bob',
+      'billing_middle_name' => '',
+      'billing_last_name' => 'Smith',
+      'billing_street_address-5' => 'p',
+      'billing_city-5' => 'p',
+      'billing_state_province_id-5' => '1061',
+      'billing_postal_code-5' => '7',
+      'billing_country_id-5' => '1228',
+      'priceSetId' => $this->getPriceSetID('PaidEvent'),
+      $this->getPriceFieldFormLabel('PaidEvent') => $this->ids['PriceFieldValue']['PaidEvent_student'],
+      'payment_processor_id' => $paymentProcessorID,
+      'participant_id' => $waitlistParticipantID,
+      'billing_state_province-5' => 'AP',
+      'billing_country-5' => 'US',
+      'hidden_processor' => 1,
     ]);
-    $this->callAPISuccessGetCount('Participant', [], 2);
-
-    $waitlistParticipant = $this->callAPISuccess('Participant', 'getsingle', ['id' => $waitlistParticipantId, 'return' => ['participant_status']]);
+    $waitlistParticipant = $this->callAPISuccess('Participant', 'getsingle', ['id' => $waitlistParticipantID, 'return' => ['participant_status']]);
     $this->assertEquals('Registered', $waitlistParticipant['participant_status'], 'Invalid participant status. Expecting: Registered');
+  }
 
-    $value = $form->get('value');
-    $this->assertArrayHasKey('contactID', $value, 'contactID missing in waitlist registration $value array');
-    $this->assertEquals($value['contactID'], $waitlistParticipant['contact_id'], 'Invalid contactID in waitlist $value array.');
+  public function checkPaymentParameters($paymentObject, $parameters): void {
+    $requiredFields = ['contactID', 'amount', 'invoiceID', 'currency', 'billing_first_name', 'billing_last_name'];
+    foreach ($requiredFields as $field) {
+      $this->assertNotEmpty($parameters[$field], $field . ' is required to have a value');
+    }
   }
 
   /**
@@ -292,38 +207,8 @@ class CRM_Event_Form_Registration_ConfirmTest extends CiviUnitTestCase {
    */
   public function testTaxMultipleParticipant(): void {
     $this->swapMessageTemplateForTestTemplate('event_online_receipt', 'text');
-
-    $mut = new CiviMailUtils($this);
     $this->createLoggedInUser();
-    $this->eventCreatePaid();
-    $this->addTaxAccountToFinancialType(CRM_Core_PseudoConstant::getKey('CRM_Contribute_BAO_Contribution', 'financial_type_id', 'Event Fee'));
-    $this->getTestForm('CRM_Event_Form_Registration_Register', [
-      'first_name' => 'Participant1',
-      'last_name' => 'LastName',
-      'email-Primary' => 'participant1@example.com',
-      'additional_participants' => 2,
-      'payment_processor_id' => 0,
-      'priceSetId' => $this->getPriceSetID('PaidEvent'),
-      'price_' . $this->ids['PriceField']['PaidEvent'] => $this->ids['PriceFieldValue']['PaidEvent_standard'],
-      'defaultRole' => 1,
-      'participant_role_id' => '1',
-      'button' => '_qf_Register_upload',
-    ], ['id' => $this->getEventID()])
-      ->addSubsequentForm('CRM_Event_Form_Registration_AdditionalParticipant', [
-        'first_name' => 'Participant2',
-        'last_name' => 'LastName',
-        'email-Primary' => 'participant2@example.com',
-        'priceSetId' => $this->getPriceSetID('PaidEvent'),
-        'price_' . $this->ids['PriceField']['PaidEvent'] => $this->ids['PriceFieldValue']['PaidEvent_standard'],
-      ])->addSubsequentForm('CRM_Event_Form_Registration_AdditionalParticipant', [
-        'first_name' => 'Participant3',
-        'last_name' => 'LastName',
-        'email-Primary' => 'participant3@example.com',
-        'priceSetId' => $this->getPriceSetID('PaidEvent'),
-        'price_' . $this->ids['PriceField']['PaidEvent'] => $this->ids['PriceFieldValue']['PaidEvent_standard'],
-      ])
-      ->addSubsequentForm('CRM_Event_Form_Registration_Confirm')
-      ->processForm();
+    $this->createScenarioMultipleParticipantPendingWithTax();
 
     $participants = $this->callAPISuccess('Participant', 'get', [])['values'];
     $this->assertCount(3, $participants);
@@ -334,25 +219,52 @@ class CRM_Event_Form_Registration_ConfirmTest extends CiviUnitTestCase {
       ]
     );
     $this->assertContains(' (multiple participants)', $contribution['amount_level']);
-    $this->assertEquals(90, $contribution['tax_amount'], 'Invalid Tax amount.');
-    $this->assertEquals(990, $contribution['total_amount'], 'Invalid Tax amount.');
-    $mailSent = $mut->getAllMessages();
+    $this->assertEquals(60, $contribution['tax_amount'], 'Invalid Tax amount.');
+    $this->assertEquals(660, $contribution['total_amount'], 'Invalid Tax amount.');
+    $mailSent = $this->sentMail;
     $this->assertCount(3, $mailSent, 'Three mails should have been sent to the 3 participants.');
-    $this->assertStringContainsString('contactID:::' . $contribution['contact_id'], $mailSent[0]);
-    $this->assertStringContainsString('contactID:::' . ($contribution['contact_id'] + 1), $mailSent[1]);
-
+    $this->assertStringContainsString('contactID:::' . $contribution['contact_id'], $mailSent[0]['body']);
+    $this->assertStringContainsString('contactID:::' . ($contribution['contact_id'] + 1), $mailSent[1]['body']);
+    $mut = new CiviMailUtils($this);
     $this->validateAllContributions();
     $this->validateAllPayments();
     $this->callAPISuccess('Payment', 'create', ['total_amount' => 990, 'payment_type_id' => 'Cash', 'contribution_id' => $contribution['id']]);
     $mailSent = $mut->getAllMessages();
-    $this->assertCount(6, $mailSent);
+    $this->assertCount(3, $mailSent);
 
-    $this->assertStringContainsString('participant_status:::Registered', $mailSent[3]);
-    $this->assertStringContainsString('Dear Participant2', $mailSent[3]);
+    $this->assertStringContainsString('participant_status:::Registered', $mailSent[0]);
+    $this->assertStringContainsString('Dear Participant2', $mailSent[0]);
 
-    $this->assertStringContainsString('contactID:::' . ($contribution['contact_id'] + 1), $mailSent[3]);
-    $this->assertStringContainsString('contactID:::' . ($contribution['contact_id'] + 2), $mailSent[4]);
-    $this->assertStringContainsString('contactID:::' . $contribution['contact_id'], $mailSent[5]);
+    $this->assertStringContainsString('contactID:::' . ($contribution['contact_id'] + 1), $mailSent[0]);
+    $this->assertStringContainsString('contactID:::' . ($contribution['contact_id'] + 2), $mailSent[1]);
+    $this->assertStringContainsString('contactID:::' . $contribution['contact_id'], $mailSent[2]);
+  }
+
+  /**
+   * Test stock template for multiple participant.
+   *
+   * The goal is to ensure no leakage.
+   *
+   * @throws \CRM_Core_Exception
+   */
+  public function testMailMultipleParticipant(): void {
+    $this->createScenarioMultipleParticipantPendingWithTax();
+    $mailSent = $this->sentMail;
+    // amounts paid = [300, 100, 200];
+    // The first participant, as the primary participant, (only) will have the full total in the email
+    $this->assertStringContainsString('$600', $mailSent[0]['body']);
+    $this->assertStringNotContainsString('$600', $mailSent[1]['body']);
+    $this->assertStringNotContainsString('$600', $mailSent[2]['body']);
+
+    // The $100 paid by the second participant will be in the emails to the primary but and second participant
+    $this->assertStringContainsString('$100', $mailSent[0]['body']);
+    $this->assertStringContainsString('$100', $mailSent[1]['body']);
+    $this->assertStringNotContainsString('$100', $mailSent[2]['body']);
+
+    // The $200 paid by the second participant will be in the emails to the primary but and third participant
+    $this->assertStringContainsString('$200', $mailSent[0]['body']);
+    $this->assertStringNotContainsString('$200', $mailSent[1]['body']);
+    $this->assertStringContainsString('$200', $mailSent[2]['body']);
   }
 
   /**
@@ -630,6 +542,7 @@ class CRM_Event_Form_Registration_ConfirmTest extends CiviUnitTestCase {
     $_REQUEST['id'] = $eventID;
     /* @var CRM_Event_Form_Registration_Register $form */
     $form = $this->getFormObject('CRM_Event_Form_Registration_Register', $submittedValues[0] ?? $submittedValues);
+    $form->preProcess();
     $form->buildForm();
     $form->postProcess();
     /* @var CRM_Event_Form_Registration_Confirm $form */
@@ -647,6 +560,7 @@ class CRM_Event_Form_Registration_ConfirmTest extends CiviUnitTestCase {
    * @param array $submitValues
    */
   protected function submitPaidEvent(array $submitValues = []): void {
+    $mailUtil = new CiviMailUtils($this, TRUE);
     $this->dummyProcessorCreate();
     $event = $this->eventCreatePaid(['payment_processor' => [$this->ids['PaymentProcessor']['dummy_live']], 'confirm_email_text' => '', 'is_pay_later' => FALSE, 'start_date' => '2022-09-16 12:00', 'end_date' => '2022-09-17 12:00']);
     $this->submitForm($event['id'], array_merge([
@@ -671,6 +585,7 @@ class CRM_Event_Form_Registration_ConfirmTest extends CiviUnitTestCase {
       'billing_state_province-5' => 'AP',
       'billing_country-5' => 'US',
     ], $submitValues));
+    $this->sentMail = $mailUtil->getAllMessages();
   }
 
   public function testRegistrationWithoutCiviContributeEnabled(): void {

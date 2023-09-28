@@ -148,7 +148,7 @@ class CRM_Event_Tokens extends CRM_Core_EntityTokens {
    * @throws \CRM_Core_Exception
    */
   public function evaluateToken(TokenRow $row, $entity, $field, $prefetch = NULL) {
-    $eventID = $this->getFieldValue($row, 'id');
+    $eventID = (int) $this->getFieldValue($row, 'id');
     if (array_key_exists($field, $this->getEventTokenValues($eventID))) {
       foreach ($this->getEventTokenValues($eventID)[$field] as $format => $value) {
         $row->format($format)->tokens($entity, $field, $value ?? '');
@@ -191,17 +191,13 @@ class CRM_Event_Tokens extends CRM_Core_EntityTokens {
           'loc_block_id.phone_2_id.phone_type_id',
           'loc_block_id.phone_2_id.phone_ext',
           'loc_block_id.phone_2_id.phone_type_id:label',
-          'confirm_email_text',
-          'is_show_location',
           'is_show_location:label',
-          'is_public',
           'is_public:label',
           'is_share',
           'is_share:label',
           'requires_approval',
           'requires_approval:label',
           'is_monetary:label',
-          'event_type_id:label',
           'event_type_id:name',
           'pay_later_text',
           'pay_later_receipt',
@@ -215,16 +211,12 @@ class CRM_Event_Tokens extends CRM_Core_EntityTokens {
         'state_province' => $event['loc_block_id.address_id.state_province_id:label'],
         'postal_code' => $event['loc_block_id.address_id.postal_code'],
       ]);
-      $tokens['location']['text/html'] = nl2br(trim($tokens['location']['text/plain']));
       $tokens['info_url']['text/html'] = \CRM_Utils_System::url('civicrm/event/info', 'reset=1&id=' . $eventID, TRUE, NULL, FALSE, TRUE);
       $tokens['registration_url']['text/html'] = \CRM_Utils_System::url('civicrm/event/register', 'reset=1&id=' . $eventID, TRUE, NULL, FALSE, TRUE);
       $tokens['start_date']['text/html'] = !empty($event['start_date']) ? new DateTime($event['start_date']) : '';
       $tokens['end_date']['text/html'] = !empty($event['end_date']) ? new DateTime($event['end_date']) : '';
       $tokens['contact_email']['text/html'] = $event['loc_block_id.email_id.email'];
       $tokens['contact_phone']['text/html'] = $event['loc_block_id.phone_id.phone'];
-      // We use text/plain for fields which should be converted to html when used in html content.
-      $tokens['confirm_email_text']['text/plain'] = $event['confirm_email_text'];
-      $tokens['pay_later_text']['text/plain'] = $event['pay_later_text'];
 
       foreach ($this->getTokenMetadata() as $fieldName => $fieldSpec) {
         if (!isset($tokens[$fieldName])) {
@@ -234,7 +226,12 @@ class CRM_Event_Tokens extends CRM_Core_EntityTokens {
             $tokens[$fieldName]['text/html'] = CRM_Core_BAO_CustomField::displayValue($value, $fieldSpec['custom_field_id']);
           }
           else {
-            $tokens[$fieldName]['text/html'] = $event[$fieldName];
+            if ($this->isHTMLTextField($fieldName)) {
+              $tokens[$fieldName]['text/html'] = $event[$fieldName];
+            }
+            else {
+              $tokens[$fieldName]['text/plain'] = $event[$fieldName];
+            }
           }
         }
       }
@@ -268,6 +265,7 @@ class CRM_Event_Tokens extends CRM_Core_EntityTokens {
       'is_public',
       'confirm_email_text',
       'is_monetary',
+      'fee_label',
     ];
   }
 

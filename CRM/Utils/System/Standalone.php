@@ -22,6 +22,14 @@ use Civi\Standalone\Security;
  */
 class CRM_Utils_System_Standalone extends CRM_Utils_System_Base {
 
+  /**
+   * @internal
+   * @return bool
+   */
+  public function isLoaded(): bool {
+    return TRUE;
+  }
+
   public function missingStandaloneExtension() {
     // error_log("sessionStart, " . (class_exists(\Civi\Standalone\Security::class) ? 'exists' : 'no ext'));
     return !class_exists(\Civi\Standalone\Security::class);
@@ -213,9 +221,7 @@ class CRM_Utils_System_Standalone extends CRM_Utils_System_Base {
    */
   public static function currentPath() {
     $path = parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH);
-    if ($path[0] == '/') {
-      $path = substr($path, 1);
-    }
+    $path = trim($path, '/');
     return $path;
   }
 

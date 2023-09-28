@@ -7,8 +7,8 @@
 <body>
 
 {capture assign=headerStyle}colspan="2" style="text-align: left; padding: 4px; border-bottom: 1px solid #999; background-color: #eee;"{/capture}
-{capture assign=labelStyle }style="padding: 4px; border-bottom: 1px solid #999; background-color: #f7f7f7;"{/capture}
-{capture assign=valueStyle }style="padding: 4px; border-bottom: 1px solid #999;"{/capture}
+{capture assign=labelStyle}style="padding: 4px; border-bottom: 1px solid #999; background-color: #f7f7f7;"{/capture}
+{capture assign=valueStyle}style="padding: 4px; border-bottom: 1px solid #999;"{/capture}
 
   <table id="crm-event_receipt" style="font-family: Arial, Verdana, sans-serif; text-align: left; width:100%; max-width:700px; padding:0; margin:0; border:0px;">
 
@@ -53,18 +53,18 @@
       </td>
      </tr>
 
-     {if !empty($event.participant_role) and $event.participant_role neq 'Attendee' and !empty($defaultRole)}
+     {if "{participant.role_id:label}" neq 'Attendee'}
       <tr>
        <td {$labelStyle}>
         {ts}Participant Role{/ts}
        </td>
        <td {$valueStyle}>
-        {$event.participant_role}
+         {participant.role_id:label}
        </td>
       </tr>
      {/if}
 
-     {if !empty($isShowLocation)}
+     {if {event.is_show_location|boolean}}
       <tr>
        <td colspan="2" {$valueStyle}>
         {$location.address.1.display|nl2br}
@@ -136,19 +136,19 @@
      {if {event.is_public|boolean}}
       <tr>
        <td colspan="2" {$valueStyle}>
-        {capture assign=icalFeed}{crmURL p='civicrm/event/ical' q="reset=1&id=`$event.id`" h=0 a=1 fe=1}{/capture}
+        {capture assign=icalFeed}{crmURL p='civicrm/event/ical' q="reset=1&id={event.id}" h=0 a=1 fe=1}{/capture}
         <a href="{$icalFeed}">{ts}Download iCalendar entry for this event.{/ts}</a>
        </td>
       </tr>
       <tr>
        <td colspan="2" {$valueStyle}>
-        {capture assign=gCalendar}{crmURL p='civicrm/event/ical' q="gCalendar=1&reset=1&id=`$event.id`" h=0 a=1 fe=1}{/capture}
+        {capture assign=gCalendar}{crmURL p='civicrm/event/ical' q="gCalendar=1&reset=1&id={event.id}" h=0 a=1 fe=1}{/capture}
          <a href="{$gCalendar}">{ts}Add event to Google Calendar{/ts}</a>
        </td>
       </tr>
      {/if}
 
-     {if $email}
+     {if {contact.email_primary.email|boolean}}
       <tr>
        <th {$headerStyle}>
         {ts}Registered Email{/ts}
@@ -156,7 +156,7 @@
       </tr>
       <tr>
        <td colspan="2" {$valueStyle}>
-        {$email}
+         {contact.email_primary.email}
        </td>
       </tr>
      {/if}
@@ -166,7 +166,7 @@
 
       <tr>
        <th {$headerStyle}>
-        {if !empty($event.fee_label)}{$event.fee_label}{/if}
+        {event.fee_label}
        </th>
       </tr>
 
@@ -188,13 +188,13 @@
              <th>{ts}Item{/ts}</th>
              <th>{ts}Qty{/ts}</th>
              <th>{ts}Each{/ts}</th>
-             {if !empty($dataArray)}
+             {if $isShowTax && {contribution.tax_amount|boolean}}
               <th>{ts}SubTotal{/ts}</th>
               <th>{ts}Tax Rate{/ts}</th>
               <th>{ts}Tax Amount{/ts}</th>
              {/if}
              <th>{ts}Total{/ts}</th>
-       {if !empty($pricesetFieldsCount) }<th>{ts}Total Participants{/ts}</th>{/if}
+       {if !empty($pricesetFieldsCount)}<th>{ts}Total Participants{/ts}</th>{/if}
             </tr>
             {foreach from=$value item=line}
              <tr>
@@ -226,7 +226,7 @@
               <td>
                {$line.line_total+$line.tax_amount|crmMoney}
               </td>
-        {if  !empty($pricesetFieldsCount) }
+        {if !empty($pricesetFieldsCount)}
         <td>
     {$line.participant_count}
               </td>
@@ -269,13 +269,13 @@
         </tr>
        {/foreach}
       {/if}
-      {if $totalTaxAmount}
+      {if {contribution.tax_amount|boolean}}
        <tr>
         <td {$labelStyle}>
          {ts}Total Tax Amount{/ts}
         </td>
         <td {$valueStyle}>
-         {$totalTaxAmount|crmMoney:$currency}
+          {contribution.tax_amount}
         </td>
        </tr>
       {/if}
@@ -284,7 +284,7 @@
          <tr>
            <td {$labelStyle}>{ts}Total Paid{/ts}</td>
            <td {$valueStyle}>
-             {if {contribution.paid_amount|boolean}}{contribution.paid_amount|crmMoney}{/if} {if !empty($hookDiscount.message)}({$hookDiscount.message}){/if}
+             {contribution.paid_amount} {if !empty($hookDiscount.message)}({$hookDiscount.message}){/if}
            </td>
           </tr>
           <tr>
@@ -295,11 +295,11 @@
          <tr>
            <td {$labelStyle}>{ts}Total Amount{/ts}</td>
            <td {$valueStyle}>
-               {if {contribution.total_amount|boolean}}{contribution.total_amount|crmMoney}{/if} {if !empty($hookDiscount.message)}({$hookDiscount.message}){/if}
+             {contribution.total_amount} {if !empty($hookDiscount.message)}({$hookDiscount.message}){/if}
            </td>
          </tr>
        {/if}
-       {if !empty($pricesetFieldsCount) }
+       {if !empty($pricesetFieldsCount)}
      <tr>
        <td {$labelStyle}>
    {ts}Total Participants{/ts}</td>
@@ -311,7 +311,7 @@
            {foreach from=$pcount item=p_count}
            {assign var="lineItemCount" value=$lineItemCount+$p_count.participant_count}
            {/foreach}
-           {if $lineItemCount < 1 }
+           {if $lineItemCount < 1}
            assign var="lineItemCount" value=1}
            {/if}
            {assign var="count" value=$count+$lineItemCount}
@@ -321,7 +321,7 @@
        </td>
      </tr>
      {/if}
-       {if $is_pay_later}
+     {if {contribution.is_pay_later|boolean} && {contribution.balance_amount|boolean}}
         <tr>
          <td colspan="2" {$labelStyle}>
           {$pay_later_receipt}
@@ -340,57 +340,57 @@
         </tr>
        {/if}
 
-       {if !empty($receive_date)}
+       {if {contribution.receive_date|boolean}}
         <tr>
          <td {$labelStyle}>
           {ts}Transaction Date{/ts}
          </td>
          <td {$valueStyle}>
-          {$receive_date|crmDate}
+           {contribution.receive_date}
          </td>
         </tr>
        {/if}
 
-       {if !empty($financialTypeName)}
+       {if {contribution.financial_type_id|boolean}}
         <tr>
          <td {$labelStyle}>
           {ts}Financial Type{/ts}
          </td>
          <td {$valueStyle}>
-          {$financialTypeName}
+           {contribution.financial_type_id:label}
          </td>
         </tr>
        {/if}
 
-       {if !empty($trxn_id)}
+       {if {contribution.financial_trxn_id|boolean}}
         <tr>
          <td {$labelStyle}>
           {ts}Transaction #{/ts}
          </td>
          <td {$valueStyle}>
-          {$trxn_id}
+           {contribution.financial_trxn_id}
          </td>
         </tr>
        {/if}
 
-       {if !empty($paidBy)}
+       {if {contribution.payment_instrument_id|boolean}}
         <tr>
          <td {$labelStyle}>
           {ts}Paid By{/ts}
          </td>
          <td {$valueStyle}>
-         {$paidBy}
+           {contribution.payment_instrument_id:label}
          </td>
         </tr>
        {/if}
 
-       {if !empty($checkNumber)}
+       {if {contribution.check_number|boolean}}
         <tr>
          <td {$labelStyle}>
           {ts}Check Number{/ts}
          </td>
          <td {$valueStyle}>
-          {$checkNumber}
+           {contribution.check_number}
          </td>
         </tr>
        {/if}

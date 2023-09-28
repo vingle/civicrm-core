@@ -22,8 +22,8 @@ trait AfformSaveTrait {
       $item['name'] = _afform_angular_module_name($prefix . '-' . \CRM_Utils_String::munge($item['title'], '-'));
       $suffix = '';
       while (
-        file_exists($scanner->createSiteLocalPath($item['name'] . $suffix, \CRM_Afform_AfformScanner::METADATA_FILE))
-        || file_exists($scanner->createSiteLocalPath($item['name'] . $suffix, 'aff.html'))
+        file_exists($scanner->createSiteLocalPath($item['name'] . $suffix, \CRM_Afform_AfformScanner::METADATA_JSON))
+        || file_exists($scanner->createSiteLocalPath($item['name'] . $suffix, \CRM_Afform_AfformScanner::LAYOUT_FILE))
       ) {
         $suffix++;
       }
@@ -53,8 +53,11 @@ trait AfformSaveTrait {
 
     $meta = $item + (array) $orig;
     unset($meta['layout'], $meta['name']);
+    if (isset($meta['permission']) && is_string($meta['permission'])) {
+      $meta['permission'] = explode(',', $meta['permission']);
+    }
     if (!empty($meta)) {
-      $metaPath = $scanner->createSiteLocalPath($item['name'], \CRM_Afform_AfformScanner::METADATA_FILE);
+      $metaPath = $scanner->createSiteLocalPath($item['name'], \CRM_Afform_AfformScanner::METADATA_JSON);
       \CRM_Utils_File::createDir(dirname($metaPath));
       // Add eof newline to make files git-friendly
       file_put_contents($metaPath, json_encode($meta, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES) . "\n");

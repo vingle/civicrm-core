@@ -314,8 +314,10 @@ class CRM_Contribute_Form_AdditionalPayment extends CRM_Contribute_Form_Abstract
   public function submit($submittedValues) {
     $this->_params = $submittedValues;
     $this->beginPostProcess();
+    // _contributorContactID may no longer need to be set - setting it here
+    // was for use in processBillingAddress
     $this->_contributorContactID = $this->_contactID;
-    $this->processBillingAddress();
+    $this->processBillingAddress($this->_contactID, (string) $this->_contributorEmail);
     $participantId = NULL;
     if ($this->_component === 'event') {
       $participantId = $this->_id;
@@ -368,11 +370,9 @@ class CRM_Contribute_Form_AdditionalPayment extends CRM_Contribute_Form_Abstract
     $session = CRM_Core_Session::singleton();
 
     // we need to retrieve email address
-    if ($this->_context == 'standalone' && !empty($this->_params['is_email_receipt'])) {
-      list($this->userDisplayName,
-        $this->userEmail
-        ) = CRM_Contact_BAO_Contact_Location::getEmailDetails($this->_contactId);
-      $this->assign('displayName', $this->userDisplayName);
+    if ($this->_context === 'standalone' && !empty($this->_params['is_email_receipt'])) {
+      [$displayName] = CRM_Contact_BAO_Contact_Location::getEmailDetails($this->_contactId);
+      $this->assign('displayName', $displayName);
     }
 
     $this->_params['amount'] = $this->_params['total_amount'];

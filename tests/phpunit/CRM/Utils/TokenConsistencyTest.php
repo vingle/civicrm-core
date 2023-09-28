@@ -201,6 +201,46 @@ case.custom_1 :' . '
   }
 
   /**
+   * Test contribution tokens pulled from the contribution page.
+   */
+  public function testContributionPageTokens(): void {
+    $tokenValues = [
+      'frontend_title' => 'public title',
+      'pay_later_text' => 'pay later text',
+      'pay_later_receipt' => '<p>first line</p><p>second line</p>',
+      'is_share' => TRUE,
+      'receipt_text' => "Text in\n non html",
+    ];
+    $tokens = [];
+    foreach (array_keys($tokenValues) as $token) {
+      $tokens[] = '{contribution.contribution_page_id.' . $token . '}';
+    }
+    $tokenString = trim($this->getTokenString($tokens));
+    $this->contributionPageCreate($tokenValues);
+
+    $tokenProcessor = $this->getTokenProcessor(['schema' => ['contributionId']]);
+    $tokenProcessor->addMessage('text', $tokenString, 'text/plain');
+    $tokenProcessor->addMessage('html', $tokenString, 'text/html');
+    $tokenProcessor->addRow(['contributionId' => $this->contributionCreate(['contribution_page_id' => $this->ids['ContributionPage']['test'], 'contact_id' => $this->individualCreate()])]);
+    $tokenProcessor->evaluate();
+    $this->assertEquals('contribution.contribution_page_id.frontend_title :public title
+contribution.contribution_page_id.pay_later_text :pay later text
+contribution.contribution_page_id.pay_later_receipt :<p>first line</p><p>second line</p>
+contribution.contribution_page_id.is_share :1
+contribution.contribution_page_id.receipt_text :Text in<br />
+ non html', $tokenProcessor->getRow(0)->render('html'));
+    $this->assertEquals('contribution.contribution_page_id.frontend_title :public title
+contribution.contribution_page_id.pay_later_text :pay later text
+contribution.contribution_page_id.pay_later_receipt :first line
+
+second line
+contribution.contribution_page_id.is_share :1
+contribution.contribution_page_id.receipt_text :Text in
+ non html', $tokenProcessor->getRow(0)->render('text'));
+
+  }
+
+  /**
    * Test that contribution recur tokens are consistently rendered.
    */
   public function testContributionRecurTokenRaw(): void {
@@ -675,12 +715,13 @@ event.loc_block_id.email_id.email :event@example.com
 event.loc_block_id.phone_id.phone :456 789
 event.description :event description
 event.location :15 Walton St<br />
-Emerald City, Maine 90210
+Emerald City, Maine 90210<br />
 event.info_url :' . CRM_Utils_System::url('civicrm/event/info', NULL, TRUE) . '&reset=1&id=1
 event.registration_url :' . CRM_Utils_System::url('civicrm/event/register', NULL, TRUE) . '&reset=1&id=1
 event.pay_later_receipt :Please transfer funds to our bank account.
 event.custom_1 :my field
 event.confirm_email_text :
+event.fee_label :Event fees
 ';
   }
 
@@ -980,6 +1021,7 @@ United States', $tokenProcessor->getRow(0)->render('message'));
       '{event.pay_later_receipt}' => 'Pay Later Receipt Text',
       '{event.' . $this->getCustomFieldName('text') . '}' => 'Enter text here :: Group with field text',
       '{event.confirm_email_text}' => 'Confirmation Email Text',
+      '{event.fee_label}' => 'Fee Label',
     ];
   }
 
@@ -1090,7 +1132,14 @@ United States', $tokenProcessor->getRow(0)->render('message'));
 
     // The `description` does allow HTML. Any funny characters are filtered out of text.
     $messages['event_text'] = 'You signed up for this event: {event.title}: {event.description}';
-    $expected['event_text'] = 'You signed up for this event: The Webinar: Some online webinar thingy. Attendees will need to install the TeleFoo app.';
+    $expected['event_text'] = 'You signed up for this event: The Webinar: Some online webinar thingy.
+
+Attendees will need to install the TeleFoo [1] app.
+
+
+Links:
+------
+[1] http://telefoo.example.com';
 
     $messages['event_html'] = '<p>You signed up for this event:</p> <h3>{event.title}</h3> {event.description}';
     $expected['event_html'] = '<p>You signed up for this event:</p> <h3>The Webinar</h3> <p>Some online webinar thingy.</p> <p>Attendees will need to install the <a href="http://telefoo.example.com">TeleFoo</a> app.</p>';

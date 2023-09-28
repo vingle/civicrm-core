@@ -130,7 +130,7 @@ class CRM_Event_Form_Registration_Confirm extends CRM_Event_Form_Registration {
     $params = [];
     // rfp == redirect from paypal
     // @fixme rfp is probably not required - the getPreApprovalDetails should deal with any payment-processor specific 'stuff'
-    $rfp = CRM_Utils_Request::retrieve('rfp', 'Boolean', CRM_Core_DAO::$_nullObject, FALSE, NULL, 'GET');
+    $rfp = CRM_Utils_Request::retrieve('rfp', 'Boolean', NULL, FALSE, NULL, 'GET');
 
     //we lost rfp in case of additional participant. So set it explicitly.
     if ($rfp || ($this->_params[0]['additional_participants'] ?? FALSE)) {
@@ -168,7 +168,7 @@ class CRM_Event_Form_Registration_Confirm extends CRM_Event_Form_Registration {
         if (!in_array($name, $skipFields)) {
           $params[$name] = $value;
         }
-        if (substr($name, 0, 6) == 'price_') {
+        if (str_starts_with($name, 'price_')) {
           $params[$name] = $this->_params[0][$name];
         }
       }
@@ -207,7 +207,7 @@ class CRM_Event_Form_Registration_Confirm extends CRM_Event_Form_Registration {
 
       $taxAmount = 0;
       foreach ($this->_params as $k => $v) {
-        if ($v == 'skip') {
+        if ($v === 'skip') {
           continue;
         }
         $individualTaxAmount = 0;
@@ -233,7 +233,7 @@ class CRM_Event_Form_Registration_Confirm extends CRM_Event_Form_Registration {
           else {
             //use an email if we have one
             foreach ($v as $v_key => $v_val) {
-              if (substr($v_key, 0, 6) == 'email-') {
+              if (str_starts_with($v_key, 'email-')) {
                 $append = $v[$v_key];
               }
             }
@@ -329,7 +329,7 @@ class CRM_Event_Form_Registration_Confirm extends CRM_Event_Form_Registration {
     foreach ($fields as $name => $dontCare) {
       if (isset($this->_params[0][$name])) {
         $defaults[$name] = $this->_params[0][$name];
-        if (substr($name, 0, 7) == 'custom_') {
+        if (str_starts_with($name, 'custom_')) {
           $timeField = "{$name}_time";
           if (isset($this->_params[0][$timeField])) {
             $defaults[$timeField] = $this->_params[0][$timeField];
@@ -459,7 +459,7 @@ class CRM_Event_Form_Registration_Confirm extends CRM_Event_Form_Registration {
     //build the $participantCount array.
     //maintain record for all participants.
     foreach ($params as $participantNum => $record) {
-      if ($record == 'skip') {
+      if ($record === 'skip') {
         unset($params[$participantNum]);
         $participantCount[$participantNum] = 'skip';
       }
@@ -570,17 +570,22 @@ class CRM_Event_Form_Registration_Confirm extends CRM_Event_Form_Registration {
             $value['email'] = CRM_Utils_Array::valueByRegexKey('/^email-/', $value);
           }
 
-          // If registering from waitlist participant_id is set but contact_id is not.
-          // We need a contact ID to process the payment so set the "primary" contact ID.
-          if (empty($value['contact_id'])) {
-            $value['contact_id'] = $contactID;
-          }
-
           if (is_object($payment)) {
             // Not quite sure why we don't just user $value since it contains the data
             // from result
             // @todo ditch $result & retest.
-            list($result, $value) = $this->processPayment($payment, $value);
+            // If registering from waitlist participant_id is set but contact_id is not.
+            // We need a contact ID to process the payment so set the "primary" contact ID.
+            $value['contactID'] = empty($value['contact_id']) ? (int) $contactID : (int) $value['contact_id'];
+            // contactID is the correct parameter to pass to the processor.
+            // However, we still pass contact_id as the same value as was previously being assigned,
+            // in case some processors are expecting that.
+            // (especially since this was recently not passing the correct value).
+            // https://docs.civicrm.org/dev/en/latest/extensions/payment-processors/create/#getpaymentformfields
+            if (empty($value['contact_id'])) {
+              $value['contact_id'] = $value['contactID'];
+            }
+            [$result, $value] = $this->processPayment($payment, $value);
           }
           else {
             throw new CRM_Core_Exception($paymentObjError);
@@ -1289,6 +1294,7 @@ class CRM_Event_Form_Registration_Confirm extends CRM_Event_Form_Registration {
    * @param $params
    */
   public static function testSubmit($params) {
+    CRM_Core_Error::deprecatedFunctionWarning('use the Civi\Test\FormTrait');
     $form = new CRM_Event_Form_Registration_Confirm();
     // This way the mocked up controller ignores the session stuff.
     $_SERVER['REQUEST_METHOD'] = 'GET';

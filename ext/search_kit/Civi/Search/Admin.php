@@ -13,7 +13,6 @@ namespace Civi\Search;
 
 use Civi\Api4\Action\SearchDisplay\AbstractRunAction;
 use Civi\Api4\Entity;
-use Civi\Api4\Extension;
 use Civi\Api4\Query\SqlEquation;
 use Civi\Api4\Query\SqlFunction;
 use Civi\Api4\SearchDisplay;
@@ -35,8 +34,6 @@ class Admin {
    */
   public static function getAdminSettings():array {
     $schema = self::getSchema();
-    $extensions = Extension::get(FALSE)->addWhere('status', '=', 'installed')
-      ->execute()->indexBy('key')->column('label');
     $data = [
       'schema' => self::addImplicitFKFields($schema),
       'joins' => self::getJoins($schema),
@@ -48,7 +45,7 @@ class Admin {
       'styles' => \CRM_Utils_Array::makeNonAssociative(self::getStyles()),
       'defaultPagerSize' => (int) \Civi::settings()->get('default_pager_size'),
       'defaultDisplay' => SearchDisplay::getDefault(FALSE)->setSavedSearch(['id' => NULL])->execute()->first(),
-      'modules' => $extensions,
+      'modules' => \CRM_Core_BAO_Managed::getBaseModules(),
       'defaultContactType' => \CRM_Contact_BAO_ContactType::basicTypeInfo()['Individual']['name'] ?? NULL,
       'defaultDistanceUnit' => \CRM_Utils_Address::getDefaultDistanceUnit(),
       'jobFrequency' => \Civi\Api4\Job::getFields()
@@ -153,7 +150,7 @@ class Admin {
           $getFields = civicrm_api4($entity['name'], 'getFields', [
             'select' => ['name', 'title', 'label', 'description', 'type', 'options', 'input_type', 'input_attrs', 'data_type', 'serialize', 'entity', 'fk_entity', 'readonly', 'operators', 'suffixes', 'nullable'],
             'where' => [['deprecated', '=', FALSE], ['name', 'NOT IN', ['api_key', 'hash']]],
-            'orderBy' => ['label'],
+            'orderBy' => ['label' => 'ASC'],
           ])->indexBy('name');
         }
         catch (\CRM_Core_Exception $e) {
@@ -170,22 +167,7 @@ class Admin {
           }
           $entity['fields'][] = $field;
         }
-        $defaultColumns = CoreUtil::getSearchFields($entity['name']);
-        // Add grouping fields like "event_type_id" + status_id + description if available
-        $grouping = (array) (CoreUtil::getCustomGroupExtends($entity['name'])['grouping'] ?? ['financial_type_id']);
-        foreach ($grouping as $fieldName) {
-          if (!empty($getFields[$fieldName]['options'])) {
-            $defaultColumns[] = "$fieldName:label";
-          }
-        }
-        $statusField = $getFields['status_id'] ?? $getFields[strtolower($entity['name']) . '_status_id'] ?? NULL;
-        if (!empty($statusField['options'])) {
-          $defaultColumns[] = $statusField['name'] . ':label';
-        }
-        if (isset($getFields['description'])) {
-          $defaultColumns[] = 'description';
-        }
-        $entity['default_columns'] = array_values(array_unique($defaultColumns));
+        $entity['default_columns'] = self::getDefaultColumns($entity, $getFields);
         $params = $entity['get'][0];
         // Entity must support at least these params or it is too weird for search kit
         if (!array_diff(['select', 'where', 'orderBy', 'limit', 'offset'], array_keys($params))) {
@@ -196,6 +178,44 @@ class Admin {
       }
     }
     return $schema;
+  }
+
+  /**
+   * Build default columns - these are used when creating a new search with this entity
+   *
+   * @param array $entity
+   * @param iterable $getFields
+   * @return array
+   */
+  private static function getDefaultColumns(array $entity, iterable $getFields): array {
+    // Start with id & label
+    $defaultColumns = array_merge(
+      $entity['primary_key'],
+      $entity['search_fields'] ?? []
+    );
+    $possibleColumns = [];
+    // Include grouping fields like "event_type_id"
+    foreach ((array) (CoreUtil::getCustomGroupExtends($entity['name'])['grouping'] ?? []) as $column) {
+      $possibleColumns[$column] = "$column:label";
+    }
+    // Other possible relevant columns... now we're just guessing
+    $possibleColumns['financial_type_id'] = 'financial_type_id:label';
+    $possibleColumns['description'] = 'description';
+    // E.g. "activity_status_id"
+    $possibleColumns[strtolower($entity['name']) . 'status_id'] = strtolower($entity['name']) . 'status_id:label';
+    $possibleColumns['start_date'] = 'start_date';
+    $possibleColumns['end_date'] = 'end_date';
+    $possibleColumns['is_active'] = 'is_active';
+    foreach ($possibleColumns as $fieldName => $columnName) {
+      if (
+        (str_contains($columnName, ':') && !empty($getFields[$fieldName]['options'])) ||
+        (!str_contains($columnName, ':') && !empty($getFields[$fieldName]))
+      ) {
+        $defaultColumns[] = $columnName;
+      }
+    }
+    // `array_unique` messes with the index so reset it with `array_values` so it cleanly encodes to a json array
+    return array_values(array_unique($defaultColumns));
   }
 
   /**
@@ -314,21 +334,29 @@ class Admin {
 
             // For dynamic references getTargetEntities will return multiple targets; for normal joins this loop will only run once
             foreach ($reference->getTargetEntities() as $targetTable => $targetEntityName) {
-              if (!isset($allowedEntities[$targetEntityName]) || $targetEntityName === $entity['name']) {
+              if (
+                !isset($allowedEntities[$targetEntityName]) ||
+                // What to do with self-references? They're weird but sometimes useful.
+                // For now, only allowing it for dynamic columns since they're explicitly declared
+                // (e.g. a Note can be a comment on a Note), and only the 1-n join since n-1 can be done with implicit joins.
+                ($targetEntityName === $entity['name'] && !$dynamicCol)
+              ) {
                 continue;
               }
               $targetEntity = $allowedEntities[$targetEntityName];
-              // Add the straight 1-1 join
-              $alias = $entity['name'] . '_' . $targetEntityName . '_' . $keyField['name'];
-              $joins[$entity['name']][] = [
-                'label' => $entity['title'] . ' ' . ($dynamicCol ? $targetEntity['title'] : $keyField['label']),
-                'description' => '',
-                'entity' => $targetEntityName,
-                'conditions' => self::getJoinConditions($keyField['name'], $alias . '.' . $reference->getTargetKey(), $targetTable, $dynamicCol),
-                'defaults' => self::getJoinDefaults($alias, $targetEntity),
-                'alias' => $alias,
-                'multi' => FALSE,
-              ];
+              // Add the straight 1-1 join (but only if it's not a reference to itself, see above)
+              if ($targetEntityName !== $entity['name']) {
+                $alias = $entity['name'] . '_' . $targetEntityName . '_' . $keyField['name'];
+                $joins[$entity['name']][] = [
+                  'label' => $entity['title'] . ' ' . ($dynamicCol ? $targetEntity['title'] : $keyField['label']),
+                  'description' => '',
+                  'entity' => $targetEntityName,
+                  'conditions' => self::getJoinConditions($keyField['name'], $alias . '.' . $reference->getTargetKey(), $targetTable, $dynamicCol),
+                  'defaults' => self::getJoinDefaults($alias, $targetEntity),
+                  'alias' => $alias,
+                  'multi' => FALSE,
+                ];
+              }
               // Flip the conditions & add the reverse (1-n) join
               $alias = $targetEntityName . '_' . $entity['name'] . '_' . $keyField['name'];
               $joins[$targetEntityName][] = [

@@ -136,8 +136,8 @@ function afform_civicrm_managed(&$entities, $modules) {
           'values' => [
             'name' => $afform['name'],
             'label' => $afform['navigation']['label'] ?: $afform['title'],
-            'permission' => (array) $afform['permission'],
-            'permission_operator' => 'OR',
+            'permission' => $afform['permission'],
+            'permission_operator' => $afform['permission_operator'] ?? 'AND',
             'weight' => $afform['navigation']['weight'] ?? 0,
             'url' => $afform['server_route'],
             'is_active' => 1,
@@ -173,7 +173,7 @@ function afform_civicrm_tabset($tabsetName, &$tabs, $context) {
   }
   $contactTypes = array_merge((array) ($context['contact_type'] ?? []), $context['contact_sub_type'] ?? []);
   $afforms = Civi\Api4\Afform::get(FALSE)
-    ->addSelect('name', 'title', 'icon', 'module_name', 'directive_name', 'summary_contact_type')
+    ->addSelect('name', 'title', 'icon', 'module_name', 'directive_name', 'summary_contact_type', 'summary_weight')
     ->addWhere('contact_summary', '=', 'tab')
     ->addOrderBy('title')
     ->execute();
@@ -186,7 +186,7 @@ function afform_civicrm_tabset($tabsetName, &$tabs, $context) {
       $tabs[] = [
         'id' => $tabId,
         'title' => $afform['title'],
-        'weight' => $weight++,
+        'weight' => $afform['summary_weight'] ?? $weight++,
         'icon' => 'crm-i ' . ($afform['icon'] ?: 'fa-list-alt'),
         'is_active' => TRUE,
         'contact_type' => _afform_get_contact_types($summaryContactType) ?: NULL,
@@ -214,6 +214,7 @@ function afform_civicrm_pageRun(&$page) {
   $afforms = Civi\Api4\Afform::get(FALSE)
     ->addSelect('name', 'title', 'icon', 'module_name', 'directive_name', 'summary_contact_type')
     ->addWhere('contact_summary', '=', 'block')
+    ->addOrderBy('summary_weight')
     ->addOrderBy('title')
     ->execute();
   $cid = $page->get('cid');
@@ -443,14 +444,21 @@ function afform_civicrm_permission_check($permission, &$granted, $contactId) {
   if (preg_match('/^@afform:(.*)/', $permission, $m)) {
     $name = $m[1];
 
-    $afform = \Civi\Api4\Afform::get()
-      ->setCheckPermissions(FALSE)
+    $afform = \Civi\Api4\Afform::get(FALSE)
       ->addWhere('name', '=', $name)
-      ->setSelect(['permission'])
+      ->addSelect('permission', 'permission_operator')
       ->execute()
       ->first();
+    // No permissions found... this shouldn't happen but just in case, set default.
+    if ($afform && empty($afform['permission'])) {
+      $afform['permission'] = ['access CiviCRM'];
+    }
     if ($afform) {
-      $granted = CRM_Core_Permission::check($afform['permission'], $contactId);
+      $check = (array) $afform['permission'];
+      if ($afform['permission_operator'] === 'OR') {
+        $check = [$check];
+      }
+      $granted = CRM_Core_Permission::check($check, $contactId);
     }
   }
 }

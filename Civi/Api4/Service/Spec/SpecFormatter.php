@@ -19,16 +19,18 @@ class SpecFormatter {
 
   /**
    * @param array $data
-   * @param string $entity
+   * @param string $entityName
    *
    * @return FieldSpec
    */
-  public static function arrayToField(array $data, $entity) {
+  public static function arrayToField(array $data, string $entityName): FieldSpec {
     $dataTypeName = self::getDataType($data);
 
+    $hasDefault = isset($data['default']) && $data['default'] !== '';
+    // Custom field
     if (!empty($data['custom_group_id'])) {
-      $field = new CustomFieldSpec($data['name'], $entity, $dataTypeName);
-      if (strpos($entity, 'Custom_') !== 0) {
+      $field = new CustomFieldSpec($data['name'], $entityName, $dataTypeName);
+      if (strpos($entityName, 'Custom_') !== 0) {
         $field->setName($data['custom_group_id.name'] . '.' . $data['name']);
       }
       else {
@@ -57,16 +59,20 @@ class SpecFormatter {
       }
       $field->setReadonly($data['is_view']);
     }
+    // Core field
     else {
       $name = $data['name'] ?? NULL;
-      $field = new FieldSpec($name, $entity, $dataTypeName);
+      $field = new FieldSpec($name, $entityName, $dataTypeName);
       $field->setType('Field');
       $field->setColumnName($name);
       $field->setNullable(empty($data['required']));
-      $field->setRequired(!empty($data['required']) && empty($data['default']));
+      $field->setRequired(!empty($data['required']) && !$hasDefault && $name !== 'id');
       $field->setTitle($data['title'] ?? NULL);
       $field->setLabel($data['html']['label'] ?? NULL);
       $field->setLocalizable($data['localizable'] ?? FALSE);
+      if (!empty($data['DFKEntities'])) {
+        $field->setDfkEntities(array_values($data['DFKEntities']));
+      }
       if (!empty($data['pseudoconstant'])) {
         // Do not load options if 'prefetch' is disabled
         if (($data['pseudoconstant']['prefetch'] ?? NULL) !== 'disabled') {
@@ -93,8 +99,10 @@ class SpecFormatter {
       }
       $field->setReadonly(!empty($data['readonly']));
     }
+    if ($hasDefault) {
+      $field->setDefaultValue(FormattingUtil::convertDataType($data['default'], $dataTypeName));
+    }
     $field->setSerialize($data['serialize'] ?? NULL);
-    $field->setDefaultValue($data['default'] ?? NULL);
     $field->setDescription($data['description'] ?? NULL);
     $field->setDeprecated($data['deprecated'] ?? FALSE);
     self::setInputTypeAndAttrs($field, $data, $dataTypeName);

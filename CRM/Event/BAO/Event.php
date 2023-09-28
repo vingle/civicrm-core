@@ -183,7 +183,7 @@ class CRM_Event_BAO_Event extends CRM_Event_DAO_Event implements \Civi\Core\Hook
       foreach ($groupTree as $values) {
         $query = "DELETE FROM %1 WHERE entity_id = %2";
         CRM_Core_DAO::executeQuery($query, [
-          1 => [$values['table_name'], 'String', CRM_Core_DAO::QUERY_FORMAT_NO_QUOTES],
+          1 => [$values['table_name'], 'MysqlColumnNameOrAlias'],
           2 => [$event->id, 'Integer'],
         ]);
       }
@@ -364,7 +364,7 @@ SELECT     count(id) as total_events
 FROM       civicrm_event
 WHERE      civicrm_event.is_active = 1 AND
            civicrm_event.is_template = 0 AND
-           civicrm_event.start_date >= DATE_SUB( NOW(), INTERVAL 7 day )
+           (civicrm_event.start_date >= DATE_SUB(NOW(), INTERVAL 7 day) OR (civicrm_event.end_date IS NOT NULL AND civicrm_event.end_date >= NOW()))
            $validEventIDs";
 
     $dao = CRM_Core_DAO::executeQuery($query);
@@ -373,9 +373,7 @@ WHERE      civicrm_event.is_active = 1 AND
       $eventSummary['total_events'] = $dao->total_events;
     }
 
-    if (empty($eventSummary) ||
-      $dao->total_events == 0
-    ) {
+    if (empty($eventSummary['total_events'])) {
       return $eventSummary;
     }
 
@@ -426,7 +424,7 @@ LEFT JOIN  civicrm_pcp_block ON ( civicrm_pcp_block.entity_id = civicrm_event.id
 LEFT JOIN  civicrm_recurring_entity ON ( civicrm_event.id = civicrm_recurring_entity.entity_id AND civicrm_recurring_entity.entity_table = 'civicrm_event' )
 WHERE      civicrm_event.is_active = 1 AND
            civicrm_event.is_template = 0 AND
-           civicrm_event.start_date >= DATE_SUB( NOW(), INTERVAL 7 day )
+           (civicrm_event.start_date >= DATE_SUB(NOW(), INTERVAL 7 day) OR (civicrm_event.end_date IS NOT NULL AND civicrm_event.end_date >= NOW()))
            $validEventIDs
 ORDER BY   civicrm_event.start_date ASC
 $event_summary_limit
@@ -669,9 +667,9 @@ $event_summary_limit
    *
    * @return array
    */
-  public static function &getMapInfo(&$id) {
+  public static function getMapInfo($id): array {
 
-    $sql = "
+    $sql = '
 SELECT
    civicrm_event.id AS event_id,
    civicrm_event.title AS display_name,
@@ -693,10 +691,9 @@ FROM
    LEFT JOIN civicrm_location_type ON ( civicrm_location_type.id = civicrm_address.location_type_id )
 WHERE civicrm_address.geo_code_1 IS NOT NULL
   AND civicrm_address.geo_code_2 IS NOT NULL
-  AND civicrm_event.id = " . CRM_Utils_Type::escape($id, 'Integer');
+  AND civicrm_event.id = ' . CRM_Utils_Type::escape($id, 'Integer');
 
-    $dao = new CRM_Core_DAO();
-    $dao->query($sql);
+    $dao = CRM_Core_DAO::executeQuery($sql);
 
     $locations = [];
 
@@ -1149,8 +1146,6 @@ WHERE civicrm_event.is_active = 1
           $participantParams
         );
 
-        $sessions = CRM_Event_Cart_BAO_Conference::get_participant_sessions($participantId);
-
         // @todo - the goal is that all params available to the message template are explicitly defined here rather than
         // 'in a smattering of places'. Note that leakage can happen between mailings when not explicitly defined.
         if ($postProfileID) {
@@ -1174,7 +1169,6 @@ WHERE civicrm_event.is_active = 1
           'customPost_grouptitle' => $customPostTitles,
           'participantID' => $participantId,
           'contactID' => $contactID,
-          'conference_sessions' => $sessions,
           'credit_card_number' => CRM_Utils_System::mungeCreditCard(CRM_Utils_Array::value('credit_card_number', $participantParams)),
           'credit_card_exp_date' => CRM_Utils_Date::mysqlToIso(CRM_Utils_Date::format(CRM_Utils_Array::value('credit_card_exp_date', $participantParams))),
           'selfcancelxfer_time' => abs($values['event']['selfcancelxfer_time']),

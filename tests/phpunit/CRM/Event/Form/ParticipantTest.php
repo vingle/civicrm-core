@@ -1,6 +1,7 @@
 <?php
 
 use Civi\Api4\Address;
+use Civi\Api4\Event;
 use Civi\Api4\LineItem;
 use Civi\Api4\LocBlock;
 use Civi\Api4\Participant;
@@ -20,6 +21,7 @@ class CRM_Event_Form_ParticipantTest extends CiviUnitTestCase {
   use FormTrait;
   use CRMTraits_Financial_OrderTrait;
   use CRMTraits_Financial_PriceSetTrait;
+  use CRMTraits_Custom_CustomDataTrait;
 
   public function tearDown(): void {
     $this->quickCleanUpFinancialEntities();
@@ -36,10 +38,37 @@ class CRM_Event_Form_ParticipantTest extends CiviUnitTestCase {
     $form = $this->getForm([], [
       'register_date' => date('Ymd'),
       'status_id' => 1,
-      'role_id' => 1,
+      'role_id' => [CRM_Core_PseudoConstant::getKey('CRM_Event_BAO_Participant', 'role_id', 'Attendee')],
     ])->postProcess();
     $this->assertEquals($this->getEventID(), $form->getEventID());
     $this->callAPISuccessGetSingle('Participant', ['id' => $form->getParticipantID()]);
+  }
+
+  public function testSubmitDualRole(): void {
+    $email = $this->getForm([], [
+      'status_id' => 1,
+      'register_date' => date('Ymd'),
+      'send_receipt' => 1,
+      'from_email_address' => 'admin@email.com',
+      'role_id' => [
+        CRM_Core_PseudoConstant::getKey('CRM_Event_BAO_Participant', 'role_id', 'Volunteer'),
+        CRM_Core_PseudoConstant::getKey('CRM_Event_BAO_Participant', 'role_id', 'Speaker'),
+      ],
+    ])->postProcess()->getFirstMailBody();
+    $this->assertStringContainsString('Volunteer, Speaker', $email);
+  }
+
+  public function testSubmitWithCustomData(): void {
+    $this->createCustomGroupWithFieldOfType(['extends' => 'Participant', 'extends_entity_column_id' => 1, 'extends_entity_column_value' => CRM_Core_PseudoConstant::getKey('CRM_Event_BAO_Participant', 'role_id', 'Volunteer')]);
+    $email = $this->getForm([], [
+      'status_id' => 1,
+      'register_date' => date('Ymd'),
+      'send_receipt' => 1,
+      'from_email_address' => 'admin@email.com',
+      'role_id' => [CRM_Core_PseudoConstant::getKey('CRM_Event_BAO_Participant', 'role_id', 'Volunteer')],
+      $this->getCustomFieldName() => 'Random thing',
+    ])->postProcess()->getFirstMailBody();
+    $this->assertStringContainsStrings($email, ['Enter text here', 'Random thing', 'Group with field text']);
   }
 
   /**
@@ -250,7 +279,6 @@ class CRM_Event_Form_ParticipantTest extends CiviUnitTestCase {
     $this->setCurrencySeparators($thousandSeparator);
     $this->swapMessageTemplateForTestTemplate('event_offline_receipt', 'text');
     $this->swapMessageTemplateForTestTemplate('event_offline_receipt');
-    $mut = new CiviMailUtils($this, TRUE);
     // Create an email associated with the logged in contact
     $loggedInContactID = $this->createLoggedInUser();
     $email = $this->callAPISuccess('Email', 'create', [
@@ -281,11 +309,11 @@ class CRM_Event_Form_ParticipantTest extends CiviUnitTestCase {
     $_REQUEST['mode'] = 'Live';
     $submitParams = $this->getSubmitParamsForCreditCardPayment($paymentProcessorID);
     $submitParams['from_email_address'] = $email['id'];
-    $this->submitForm(['is_monetary' => 1, 'financial_type_id' => 1, 'pay_later_receipt' => 'pay us'], $submitParams, TRUE);
+    $message = $this->submitForm(['is_monetary' => 1, 'financial_type_id' => 1, 'pay_later_receipt' => 'pay us'], $submitParams, TRUE)->getFirstMail();
     $participantID = Participant::get()->addWhere('event_id', '=', $this->getEventID('PaidEvent'))->execute()->first()['id'];
     //Check if type is correctly populated in mails.
     //Also check the string email is present not numeric from.
-    $mut->checkMailLog([
+    $this->assertStringContainsStrings($message['headers'] . $message['body'], [
       'contactID:::' . $this->getContactID(),
       'contact.id:::' . $this->getContactID(),
       'eventID:::' . $this->getEventID('PaidEvent'),
@@ -322,6 +350,12 @@ London,',
     $this->callAPISuccess('Email', 'delete', ['id' => $email['id']]);
   }
 
+  public function assertStringContainsStrings($string, $expectedStrings) {
+    foreach ($expectedStrings as $expectedString) {
+      $this->assertStringContainsString($expectedString, $string);
+    }
+  }
+
   /**
    * Get prepared form object.
    *
@@ -331,7 +365,8 @@ London,',
    *
    * @return \Civi\Test\FormWrappers\EventFormParticipant
    *
-   * @throws \CRM_Core_Exception
+   *
+   * @noinspection PhpDocMissingThrowsInspection
    */
   protected function getForm(array $eventParams = [], array $submittedValues = [], bool $isQuickConfig = FALSE): EventFormParticipant {
     $submittedValues['contact_id'] = $this->ids['Contact']['event'] = $this->individualCreate();
@@ -361,11 +396,12 @@ London,',
    * @param array $submittedValues
    * @param bool $isQuickConfig
    *
-   * @throws \CRM_Core_Exception
+   * @return \Civi\Test\FormWrappers\EventFormParticipant
    */
-  protected function submitForm(array $eventParams = [], array $submittedValues = [], bool $isQuickConfig = FALSE): void {
+  protected function submitForm(array $eventParams = [], array $submittedValues = [], bool $isQuickConfig = FALSE): EventFormParticipant {
     $form = $this->getForm($eventParams, $submittedValues, $isQuickConfig);
     $form->postProcess();
+    return $form;
   }
 
   /**
@@ -491,8 +527,7 @@ London,',
    * @throws \CRM_Core_Exception
    */
   public function testSubmitPartialPayment(bool $isQuickConfig): void {
-    $mailUtil = new CiviMailUtils($this, TRUE);
-    $this->submitForm(['is_monetary' => 1, 'start_date' => '2023-02-15 15:00', 'end_date' => '2023-02-15 18:00'], [
+    $email = $this->submitForm(['is_monetary' => 1, 'start_date' => '2023-02-15 15:00', 'end_date' => '2023-02-15 18:00'], [
       'contribution_status_id' => CRM_Core_PseudoConstant::getKey('CRM_Contribute_BAO_Contribution', 'contribution_status_id', 'Completed'),
       'total_amount' => '20',
       'send_receipt' => '1',
@@ -502,8 +537,8 @@ London,',
       'status_id' => CRM_Core_PseudoConstant::getKey('CRM_Event_BAO_Participant', 'status_id', 'Partially paid'),
       'source' => 'I wrote this',
       'note' => 'I wrote a note',
-    ], $isQuickConfig);
-    $this->assertPartialPaymentResult($isQuickConfig, $mailUtil);
+    ], $isQuickConfig)->getFirstMail();
+    $this->assertPartialPaymentResult($isQuickConfig, $email);
   }
 
   /**
@@ -516,15 +551,14 @@ London,',
    * @throws \CRM_Core_Exception
    */
   public function testSubmitPendingPartiallyPaidAddPayment(bool $isQuickConfig): void {
-    $mailUtil = new CiviMailUtils($this, TRUE);
-    $this->submitForm(['is_monetary' => 1, 'start_date' => '2023-02-15 15:00', 'end_date' => '2023-02-15 18:00'], [], $isQuickConfig);
+    $message = $this->submitForm(['is_monetary' => 1, 'start_date' => '2023-02-15 15:00', 'end_date' => '2023-02-15 18:00'], [], $isQuickConfig)->getFirstMail();
     $this->callAPISuccess('Payment', 'create', [
       'contribution_id' => $this->callAPISuccessGetValue('Contribution', ['return' => 'id']),
       'total_amount'  => 20,
       'check_number' => 879,
       'payment_instrument_id' => CRM_Core_PseudoConstant::getKey('CRM_Contribute_BAO_Contribution', 'payment_instrument_id', 'Check'),
     ]);
-    $this->assertPartialPaymentResult($isQuickConfig, $mailUtil, FALSE);
+    $this->assertPartialPaymentResult($isQuickConfig, $message, FALSE);
   }
 
   /**
@@ -539,24 +573,23 @@ London,',
    * @throws \CRM_Core_Exception
    */
   public function testSubmitPendingAddPayment(bool $isQuickConfig): void {
-    $mailUtil = new CiviMailUtils($this, TRUE);
-    $this->submitForm(['is_monetary' => 1, 'start_date' => '2023-02-15 15:00', 'end_date' => '2023-02-15 18:00'], [], $isQuickConfig);
+    $message = $this->submitForm(['is_monetary' => 1, 'start_date' => '2023-02-15 15:00', 'end_date' => '2023-02-15 18:00'], [], $isQuickConfig)->getFirstMail();
     $this->callAPISuccess('Payment', 'create', [
       'contribution_id' => $this->callAPISuccessGetValue('Contribution', ['return' => 'id']),
       'total_amount'  => 20,
       'check_number' => 879,
       'payment_instrument_id' => CRM_Core_PseudoConstant::getKey('CRM_Contribute_BAO_Contribution', 'payment_instrument_id', 'Check'),
     ]);
-    $this->assertPartialPaymentResult($isQuickConfig, $mailUtil, FALSE);
+    $this->assertPartialPaymentResult($isQuickConfig, $message, FALSE);
   }
 
   /**
    * @param bool $isQuickConfig
-   * @param \CiviMailUtils $mut
+   * @param array $message
    * @param bool $isAmountPaidOnForm
    *   Was the amount paid entered on the form (if so this should be on the receipt)
    */
-  protected function assertPartialPaymentResult(bool $isQuickConfig, CiviMailUtils $mut, bool $isAmountPaidOnForm = TRUE): void {
+  protected function assertPartialPaymentResult(bool $isQuickConfig, array $message, bool $isAmountPaidOnForm = TRUE): void {
     $paymentInstrumentID = CRM_Core_PseudoConstant::getKey('CRM_Contribute_BAO_Contribution', 'payment_instrument_id', 'Check');
     $contribution = $this->callAPISuccessGetSingle('Contribution', []);
     $expected = [
@@ -629,9 +662,9 @@ London,',
       'financial_account_id' => 4,
     ], $financialItem);
 
-    $mut->checkMailLog([
+    $this->assertStringContainsStrings($message['headers'] . $message['body'], [
       'From: "FIXME" <info@EXAMPLE.ORG>',
-      'To: Anthony Anderson <anthony_anderson@civicrm.org>',
+      'To: "Mr. Anthony Anderson II" <anthony_anderson@civicrm.org>',
       'Subject: Event Confirmation - Annual CiviCRM meet - Mr. Anthony Anderson II',
       'Dear Anthony,Contact the Development Department if you need to make any changes to your registration.',
       'Event Information and Location',
@@ -642,7 +675,6 @@ London,',
       $isAmountPaidOnForm ? 'Total Paid: $20.00' : 'Total Paid: ',
       $isAmountPaidOnForm ? 'Balance: $1,530.55' : 'Balance: $1,550.55',
       'Financial Type: Event Fee',
-      'Paid By: Check',
       'February 15th, 2023  3:00 PM- 6:00 PM',
       'Check Number: 879',
     ]);
@@ -702,7 +734,7 @@ London,',
       'hidden_custom' => '1',
       'hidden_custom_group_count' => ['' => 1],
       'register_date' => '2020-01-31 00:50:00',
-      'role_id' => [0 => CRM_Core_PseudoConstant::getKey('CRM_Event_BAO_Participant', 'role_id', 'Attendee')],
+      'role_id' => [CRM_Core_PseudoConstant::getKey('CRM_Event_BAO_Participant', 'role_id', 'Attendee')],
       'status_id' => CRM_Core_PseudoConstant::getKey('CRM_Event_BAO_Participant', 'status_id', $participantStatus),
       'source' => 'I wrote this',
       'note' => 'I wrote a note',
@@ -715,21 +747,23 @@ London,',
    * @throws \CRM_Core_Exception
    */
   public function testTransferParticipantRegistration(): void {
-    //Register a contact to a sample event.
-    $this->createEventOrder();
-    $contribution = $this->callAPISuccessGetSingle('Contribution', ['return' => 'id']);
-    //Check line item count of the contribution id before transfer.
-    $lineItems = CRM_Price_BAO_LineItem::getLineItemsByContributionID($contribution['id']);
-    $this->assertCount(2, $lineItems);
-    $participantId = CRM_Core_DAO::getFieldValue('CRM_Event_BAO_ParticipantPayment', $contribution['id'], 'participant_id', 'contribution_id');
-    /** @var CRM_Event_Form_SelfSvcTransfer $form */
-    $form = $this->getFormObject('CRM_Event_Form_SelfSvcTransfer');
-    $toContactId = $this->individualCreate();
-    $mut = new CiviMailUtils($this);
     $this->swapMessageTemplateForInput('event_online_receipt', '{domain.name} {contact.first_name}');
-    $form->transferParticipantRegistration($toContactId, $participantId);
-    $mut->checkAllMailLog(['Default Domain Name Anthony']);
-    $mut->clearMessages();
+
+    $this->createEventOrder();
+    Event::update()->addWhere('id', '=', $this->getEventID())->setValues([
+      'start_date' => 'next week',
+      'allow_selfcancelxfer' => TRUE,
+    ])->execute();
+    $contribution = $this->callAPISuccessGetSingle('Contribution', ['return' => 'id']);
+    $toContactID = $this->individualCreate([], 'to');
+    $participantId = CRM_Core_DAO::getFieldValue('CRM_Event_BAO_ParticipantPayment', $contribution['id'], 'participant_id', 'contribution_id');
+    $mail = $this->getTestForm('CRM_Event_Form_SelfSvcTransfer', [
+      'contact_id' => $toContactID,
+    ], [
+      'pid' => $participantId,
+      'is_backoffice' => 1,
+    ])->processForm()->getFirstMailBody();
+    $this->assertStringContainsString('Default Domain Name Anthony', $mail);
     $this->revertTemplateToReservedTemplate();
 
     //Assert participant is transferred to $toContactId.
@@ -737,11 +771,11 @@ London,',
       'return' => ['transferred_to_contact_id'],
       'id' => $participantId,
     ]);
-    $this->assertEquals($participant['transferred_to_contact_id'], $toContactId);
+    $this->assertEquals($participant['transferred_to_contact_id'], $toContactID);
 
     //Assert $toContactId has a new registration.
     $toParticipant = $this->callAPISuccess('Participant', 'getsingle', [
-      'contact_id' => $toContactId,
+      'contact_id' => $toContactID,
     ]);
     $this->assertEquals($toParticipant['participant_registered_by_id'], $participantId);
 
