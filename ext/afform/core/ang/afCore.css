@@ -59,7 +59,8 @@ af-form {
 .af-collapsible.af-collapsed > .af-title:before {
   content: "\f0da";
 }
-div.af-collapsible.af-collapsed > .af-title ~ * {
+div.af-collapsible.af-collapsed > .af-title ~ *,
+fieldset.af-collapsible.af-collapsed > .af-title ~ * {
   display: none !important;
 }
 
