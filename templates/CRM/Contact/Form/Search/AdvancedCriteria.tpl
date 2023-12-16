@@ -75,7 +75,6 @@ CRM.$(function($) {
 });
 </script>
 {/literal}
-
 {if $context EQ 'smog' || $context EQ 'amtg' || !empty($savedSearch)}
   <h3>
     {if $context EQ 'smog'}{ts}Find Contacts within this Group{/ts}
