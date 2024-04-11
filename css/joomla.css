@@ -58,3 +58,15 @@ body.admin.com_civicrm.layout-default .modal-dialog {
   overflow: scroll;
   pointer-events: all;
 }
+@media (max-width: 768px) {
+  body.admin.com_civicrm.layout-default #header {
+    margin-bottom: 0 !important; 
+  }
+  body.admin.com_civicrm.layout-default #civicrm-menu-nav {
+    margin-top: 0 !important;
+    z-index: 10000 !important;
+  }
+  body.admin.com_civicrm.layout-default .breadcrumb {
+    margin-top: 1.5rem;
+  }
+}
