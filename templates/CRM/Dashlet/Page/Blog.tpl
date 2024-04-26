@@ -11,7 +11,7 @@
 <style type="text/css">
   #civicrm-news-feed {
     border: 0 none;
-    font-family: inherit; // Stops JQueryUI's attempt to make this section Verdana
+    font-family: inherit; /* Stops JQueryUI's attempt to make this section Verdana */
   }
   #civicrm-news-feed .crm-news-feed-unread .crm-news-feed-item-title {
     font-weight: bold;
