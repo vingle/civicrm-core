@@ -1,60 +1,45 @@
 body {
   background: #eee;
 }
+
 /* Header */
 .civicrm-setup-header {
-  height: 300px;
   width: 100%;
-  display: block;
+  display: flex;
+  gap: 2rem;
 }
 
-.civicrm-setup-header .title {
-  width: 25%;
-  position: absolute;
-  overflow: hidden;
-  float: left;
-  margin-left: 10%;
-  margin-top: 50px;
-  margin-right: 20%;
-  display: inline-flex;
+.civicrm-setup-header > * {
+  flex: 1;
 }
 
 .civicrm-setup-header h1 {
-  line-height: 35px;
-  color: #ddd;
+  margin: 0;
+  color: #fff;
   position: relative;
-  left: 400px;
+  left: -40px;
   -webkit-animation: slide 1s forwards;
-  -webkit-animation-delay: 0.5s;
+  -webkit-animation-delay: 0.25s;
   animation: slide 1s forwards;
-  animation-delay: 0.5s;
+  animation-delay: 0.25s;
 }
 
 @-webkit-keyframes slide {
   100% {
     left: 0;
-    color: #555;
+    color: #000;
   }
 }
 
 @keyframes slide {
   100% {
     left: 0;
-    color: #555;
+    color: #000;
   }
 }
 
 .civicrm-setup-header hr {
-  border-bottom: 2px solid #fff;
-  border-top: 2px solid #ddd;
-}
-
-.civicrm-setup-body .civicrm-logo {
-  float: right;
-  width: 30%;
-  display: grid;
-  margin-top: 50px;
-  margin-right: 10%;
+  border: 0;
 }
 
 .civicrm-setup-body .civicrm-logo img {
@@ -64,7 +49,7 @@ body {
 /* Header End */
 
 .civicrm-setup-body #All {
-  font-family: Arial, sans-serif;
+  font-family: sans-serif;
   width: auto;
   margin: 0.5em auto;
   padding: 1em;
@@ -304,11 +289,6 @@ body {
 }
 
 @media only screen and (max-width: 635px) {
-  .civicrm-setup-header .title {
-    width: 45%;
-    margin-left: 5%;
-    margin-top: 30px;
-  }
 
   .civicrm-setup-body .settingsTable {
     display: block;
@@ -316,6 +296,9 @@ body {
     white-space: nowrap;
     width: 95%;
     margin: 10px 2% 10px 2%;
+  }
+  .civicrm-setup-header {
+    flex-direction: column-reverse;
   }
 }
 
