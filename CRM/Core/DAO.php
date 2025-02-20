@@ -1563,7 +1563,7 @@ LIKE %1
 
     self::$_dbColumnValueCache ??= [];
 
-    while (strpos($daoName, '_BAO_') !== FALSE) {
+    while (str_contains($daoName, '_BAO_')) {
       $daoName = get_parent_class($daoName);
     }
 
@@ -1786,11 +1786,6 @@ LIKE %1
       $dao = new $daoName();
     }
 
-    if ($trapException) {
-      CRM_Core_Error::deprecatedFunctionWarning('calling functions should handle exceptions');
-      $errorScope = CRM_Core_TemporaryErrorScope::ignoreException();
-    }
-
     if ($dao->isValidOption($options)) {
       $dao->setOptions($options);
     }
@@ -1800,11 +1795,6 @@ LIKE %1
     // since it is unbuffered, ($dao->N==0) is true.  This blocks the standard fetch() mechanism.
     if (($options['result_buffering'] ?? NULL) === 0) {
       $dao->N = TRUE;
-    }
-
-    if (is_a($result, 'DB_Error')) {
-      CRM_Core_Error::deprecatedFunctionWarning('calling functions should handle exceptions');
-      return $result;
     }
 
     return $dao;
@@ -2937,6 +2927,7 @@ SELECT contact_id
   public static function buildOptions($fieldName, $context = NULL, $values = []) {
     $entityName = CRM_Core_DAO_AllCoreTables::getEntityNameForClass(get_called_class());
     $entity = Civi::entity($entityName);
+    $legacyFieldName = $fieldName;
     // Legacy handling for custom field names in `custom_123` format
     if (str_starts_with($fieldName, 'custom_') && is_numeric($fieldName[7] ?? '')) {
       $fieldName = CRM_Core_BAO_CustomField::getLongNameFromShortName($fieldName) ?? $fieldName;
@@ -2948,7 +2939,7 @@ SELECT contact_id
     }
     // Legacy handling for hook-based fields from `fields_callback`
     if (!$entity->getField($fieldName)) {
-      return CRM_Core_PseudoConstant::get(static::class, $fieldName, [], $context);
+      return CRM_Core_PseudoConstant::get(static::class, $legacyFieldName, [], $context);
     }
     $checkPermissions = (bool) ($values['check_permissions'] ?? ($context == 'create' || $context == 'search'));
     $includeDisabled = ($context == 'validate' || $context == 'get');
@@ -3501,7 +3492,7 @@ SELECT contact_id
    */
   private function clearDbColumnValueCache() {
     $daoName = get_class($this);
-    while (strpos($daoName, '_BAO_') !== FALSE) {
+    while (str_contains($daoName, '_BAO_')) {
       $daoName = get_parent_class($daoName);
     }
     if (isset($this->id)) {

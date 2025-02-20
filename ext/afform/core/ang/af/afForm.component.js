@@ -101,7 +101,7 @@
                 // Use _.each() because item.values could be cast as an object if array keys are not sequential
                 _.each(item.values, (values, index) => {
                   data[item.name][index] = data[item.name][index] || {};
-                  data[item.name][index].joins = {};
+                  data[item.name][index].joins = data[item.name][index].joins || {};
                   angular.merge(data[item.name][index], values, {fields: _.cloneDeep(schema[item.name].data || {})});
                 });
               });
@@ -131,9 +131,14 @@
       }
 
       // Used when submitting file fields
+      var token = new URLSearchParams(window.location.search).get('_aff');
+      var headers = {'X-Requested-With': 'XMLHttpRequest'};
+      if (token) {
+        headers['X-Civi-Auth-Afform'] = token;
+      }
       this.fileUploader = new FileUploader({
         url: CRM.url('civicrm/ajax/api4/Afform/submitFile'),
-        headers: {'X-Requested-With': 'XMLHttpRequest'},
+        headers: headers,
         onCompleteAll: postProcess,
         onBeforeUploadItem: function(item) {
           status.resolve();
