@@ -145,6 +145,13 @@ table.dataTable.order-column.stripe tbody tr.extension-installed.even > .sorting
   display: block;
 }
 
+/* Inactive/disabled rows */
+
+.crm-container tr:has(.disabled) {
+    background-color: transparent !important;
+    font-style: italic;
+}
+
 /* Sticky header */
 .crm-sticky thead > tr > th,
 .crm-container table thead.sticky {
