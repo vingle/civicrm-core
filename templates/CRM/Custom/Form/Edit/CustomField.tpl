@@ -19,7 +19,7 @@
   <tr class="custom_field-row {$element.element_name}-row hiddenElement">
     <td>{$formElement.html}</td>
   </tr>
-{elseif $element.options_per_line}
+{elseif $element.options_per_line || $element.html_type === "CheckBox" || $element.html_type === "Radio"}
   <tr class="custom_field-row {$element.element_name}-row" {if $element.html_type === "Radio"}role="radiogroup" aria-labelledby="{$element.element_name}_group"{/if}>
     <td class="label"{if $element.html_type === "Radio"} id="{$element.element_name}_group">{$formElement.label|regex_replace:"/\<(\/|)label\>/":""}{else}>{$formElement.label}{/if}{if $element.help_post}{help id=$element.id file="CRM/Custom/Form/CustomField.hlp" title=$element.label}{/if}</td>
     <td class="html-adjust">
@@ -27,7 +27,7 @@
       <div class="crm-multiple-checkbox-radio-options crm-options-per-line" style="--crm-opts-per-line:{$element.options_per_line};">
         {foreach name=outer key=key item=item from=$formElement}
           {if is_array($item) && array_key_exists('html', $item)}
-            <div class="crm-option-label-pair" >{$formElement.$key.html}</div>
+            <div class="crm-option-label-pair">{$formElement.$key.html}</div>
           {/if}
         {/foreach}
       </div>

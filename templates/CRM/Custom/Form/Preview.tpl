@@ -33,10 +33,10 @@
         {if !empty($element.help_pre)}
             <tr><td class="label"></td><td class="description">{$element.help_pre}</td></tr>
         {/if}
-  {if !empty($element.options_per_line)}
+  {if !empty($element.options_per_line) || $element.html_type === "CheckBox" || $element.html_type === "Radio"}
         {assign var="element_name" value=$element.element_name}
         <tr class="custom-field-row {$element_name}-row" {if $element.html_type === "Radio"}role="radiogroup" aria-labelledby="{$element_name}_group"{/if}>
-         <td class="label"{if $element.html_type === "Radio"} id="{$element.element_name}_group">{$formElement.label|regex_replace:"/\<(\/|)label\>/":""}{else}>{$formElement.label}{/if}{if !empty($element.help_post)}{help id=$element.id file="CRM/Custom/Form/CustomField.hlp" title=$form.$element_name.label}{/if}</td>
+        <td class="label">{if $element.html_type === "Radio"}<span id="{$element_name}_group">{$element.label}</span>{else}{$form.$element_name.label}{/if}{if !empty($element.help_post)}{help id=$element.id file="CRM/Custom/Form/CustomField.hlp" title=$form.$element_name.label}{/if}</td>
          <td>
             {assign var="count" value=1}
                 <table class="form-layout-compressed">
