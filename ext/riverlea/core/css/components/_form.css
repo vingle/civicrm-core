@@ -109,6 +109,11 @@
   border: 1px solid var(--crm-fieldset-border-color);
   border-width: var(--crm-fieldset-border);
 }
+.crm-container fieldset.crm-sr-fieldset {
+  border: 0;
+  padding: 0;
+  margin: 0;
+}
 .crm-container fieldset legend {
   font-weight: bold;
   font-family: var(--crm-font-bold);

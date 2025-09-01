@@ -31,6 +31,11 @@
   text-align: var(--crm-f-legend-align);
   float: var(--crm-f-legend-position);
 }
+.crm-container.crm-public fieldset.crm-sr-fieldset legend {
+  padding: 0;
+  font-size: inherit;
+  position: absolute;
+}
 .crm-container.crm-public fieldset legend + * {
   clear: both;
 }
