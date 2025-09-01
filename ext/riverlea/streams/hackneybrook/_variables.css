@@ -141,6 +141,7 @@
   --crm-f-legend-size: var(--crm-r2);
   --crm-f-form-width: 50vw;
   --crm-f-label-position: unset; /* 'unset' = stacked, 'left' = left align, in combination with width below */
+  --crm-f-sr-legend-position: var(--crm-f-label-position);
   --crm-f-label-align: left;
   --crm-f-label-margin: 0 var(--crm-s);
   --crm-f-label-width: unset;

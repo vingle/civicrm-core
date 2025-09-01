@@ -436,6 +436,7 @@
   --crm-f-fieldset-border: 0;
   --crm-f-fieldset-box-shadow: var(--crm-f-box-shadow);
   --crm-f-legend-position: left; /* chose 'left', 'right' or 'inherit' for browser-default of mid fieldset border */
+  --crm-f-sr-legend-position: absolute; /* chose 'absolute' for inline label/input, and 'unset' for stacked. See #33491 */
   --crm-f-legend-align: left;
   --crm-f-legend-size: var(--crm-r3);
   --crm-f-legend-padding: 0;

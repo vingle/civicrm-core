@@ -477,6 +477,7 @@
   --crm-f-form-padding: var(--crm-padding-reg);
   --crm-f-form-layout: block; /* 'grid' = inline, 'block' = stacked */
   --crm-f-label-position: unset;
+  --crm-f-sr-legend-position: var(--crm-f-label-position);
   --crm-f-label-align: left;
   --crm-f-label-weight: bold;
   --crm-f-label-margin: var(--crm-s);
