@@ -294,8 +294,15 @@ dl dl {
   background-color: var(--crm-c-page-background);
 }
 .crm-container tr.disabled td *:not(.btn,button,i,a),
-.crm-container td.disabled {
+.crm-container td.disabled,
+.crm-container #extensions-main table tr.disabled td {
+  font-family: var(--crm-font-italic);
   font-style: italic;
+}
+.crm-container tr.disabled td *:not(.btn,button,i,a) strong,
+.crm-container td.disabled strong,
+.crm-container #extensions-main table tr.disabled td strong {
+  font-family: var(--crm-font-bold-italic);
 }
 .crm-container tr.disabled td:first-of-type:not(.crm-search-ctrl-column,.crm-extensions-label) {
   display: inline-flex;

@@ -11,7 +11,7 @@
   --crm-font: "Civitype", "Open Sans", var(--crm-system-fonts);
   --crm-font-bold: "Civitype-bold", var(--crm-system-fonts);
   --crm-font-italic: "Civitype-italic", var(--crm-system-fonts);
-  --crm-font-bold-italic: "Civitype", var(--crm-system-fonts);
+  --crm-font-bold-italic: "Civitype-bold", var(--crm-system-fonts);
 /* Colour names */
   --crm-c-gray-900: #222831;
   --crm-c-gray-800: #393a3f;
