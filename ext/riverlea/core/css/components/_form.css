@@ -361,6 +361,10 @@ input.crm-form-checkbox) + label {
   height: auto;
   padding: var(--crm-s);
 }
+.crm-container input:disabled {
+  cursor: not-allowed;
+  color: var(--crm-c-inactive);
+}
 
 /* Contact dashboard form */
 
