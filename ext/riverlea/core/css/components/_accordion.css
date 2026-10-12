@@ -153,3 +153,20 @@
 #contact-summary details .crm-accordion-body {
   box-shadow: none;
 }
+/* Animation (via @artfulrobot / Thames */
+
+@keyframes crm-details-show {
+  from {
+    opacity: 0;
+    transform: translateY(-0.5rem);
+}
+  50% {
+    transform: translateY(-0.1rem);
+}
+}
+.crm-container :is(details,
+.crm-accordion-wrapper)>.crm-accordion-body,
+.crm-container .crm-dashlet-content {
+  padding: var(--crm-accordion-body-padding);
+  animation: crm-details-show 240ms ease-in-out;
+}
