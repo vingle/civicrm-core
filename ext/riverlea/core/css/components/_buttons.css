@@ -96,12 +96,13 @@
 .crm-container a.button.delete,
 .crm-container a.button.delete:link {
   background: var(--crm-btn-danger-bg-color);
-  color: var(--crm-btn-cancel-text-color);
+  color: var(--crm-btn-danger-text-color);
 }
 .crm-container a.button.delete-button:hover,
 .crm-container a.button.delete-button:focus,
 .crm-container a.button.delete:hover {
   background: color-mix(in srgb, var(--crm-btn-danger-bg-color) 87.5%, #000 12.5%);
+  color: var(--crm-btn-danger-text-color);
 }
 .crm-container .crm-button-type-cancel:hover,
 .crm-container .crm-button-type-cancel:focus,

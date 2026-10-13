@@ -214,6 +214,7 @@
   --crm-alert-padding: var(--crm-l-medium) var(--crm-l-medium-2);
   --crm-alert-margin: 0 0 var(--crm-l-medium);
   --crm-alert-border-width: 1px;
+  --crm-alert-radius: var(--crm-l-radius);
   --crm-alert-success-bg-color: var(--crm-success-light-color);
   --crm-alert-success-border-color: color-mix(in srgb, var(--crm-alert-success-bg-color) 90%,#000 10%);
   --crm-alert-success-text-color: var(--crm-success-color);
@@ -255,6 +256,7 @@
   --crm-input-label-align: right;
   --crm-input-label-color: var(--crm-text-color);
   --crm-input-description: var(--crm-inactive-color);
+  --crm-input-description-size: var(--crm-input-label-size);
   --crm-input-dropdown-icon: "\f107";
   --crm-input-radio-color: var(--crm-focus-color);
   --crm-input-select-bg-color: var(--crm-layer1-bg-color);

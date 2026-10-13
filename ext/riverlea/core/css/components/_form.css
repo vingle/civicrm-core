@@ -85,11 +85,15 @@
 .crm-container .description:not(#help),
 .crm-container td.description {
   color: var(--crm-input-description);
-  font-size: var(--crm-input-label-size);
+  font-size: var(--crm-input-description-size);
   margin-bottom: var(--crm-flex-gap);
 }
 .crm-container .crm-marker {
-  color: var(--crm-notify-danger-color);
+  color: var(--crm-input-required-color);
+  font-size: var(--crm-input-required-font-size);
+  vertical-align: middle;
+}
+  var(--crm-notify-danger-color);
 }
 .crm-container .form-inline {
   padding: var(--crm-l-small) 0;
@@ -775,7 +779,7 @@ span.crm-select-item-color {
 .crm-container input.crm-form-date,
 #bootstrap-theme input.dateplugin,
 #bootstrap-theme .input-group input.crm-form-date {
-  width: 12ch;
+  width: 16ch;
 }
 .crm-form-date-wrapper a.crm-clear-link {
   display: flex;

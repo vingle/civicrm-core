@@ -113,11 +113,13 @@
 :root {
 /* Alerts */
   --crm-alert-padding: var(--crm-l-reg);
-  --crm-alert-border-width: 0;
+  --crm-alert-border-width: 0 0 0 2rem;
+  --crm-alert-radius: 0;
 /* Note 'help' suffix here is for the 'success' boxes. */
   --crm-alert-success-bg-color: var(--crm-c-blue-light);
-  --crm-alert-success-border-color: unset;
+  --crm-alert-success-border-color: #7cb5e1;
   --crm-alert-success-text-color: unset;
+  --crm-alert-warning-bg-color: var(--crm-c-yellow-light);
   --crm-alert-warning-border-color: var(--crm-c-yellow);
   --crm-alert-info-bg-color: var(--crm-c-blue-light);
   --crm-alert-info-border-color: var(--crm-c-blue);
@@ -132,6 +134,7 @@
   --crm-input-box-shadow: none;
   --crm-input-label-width: 16ch; /* thames todo - where is this used? */
   --crm-input-description: #000000e8; /* darker for legibility */
+  --crm-input-description-size: var(--crm-l-medium-3);
 }
 :root {
 /* Tabs */
@@ -202,6 +205,7 @@
   --crm-dropdown-hover-text-color: var(--crm-c-blue-dark);
   --crm-dropdown-hover-bg-color: var(--crm-c-blue-light);
   --crm-dropdown-width: 23ch;
+  --crm-dropdown-radius: 4px;
 }
 :root {
 /* Notifications */
@@ -360,13 +364,14 @@ html.cms-standalone body {
 
 /* ALERTS (these are in-page-flow boxes with info, not the (normally) popup notifications) */
 
-/* help boxes: put stripe down left with icon in it. */
+/* help boxes: put stripe down left with icon in it. *
 .crm-container #help,
 .crm-container .help {
   border: none;
   border-left: 2rem solid #7cb5e1;
   border-radius: 0;
 }
+  */
 .crm-container #help::before,
 .crm-container .help::before {
   color: #fff;
@@ -378,15 +383,17 @@ html.cms-standalone body {
   position: absolute;
   text-rendering: auto;
 }
-
-.crm-container .alert-success {
+/* .crm-container .alert-success {
   background-color: var(--crm-c-green);
 }
+  -- REMOVED - unless you also set border color and text color this looks odd mix of blue and green
 .crm-container :is(.status,
 .alert-warning,
 .messages.warning) {
   --crm-l-radius: 0.25rem;
+  -- REMOVED - this wasn't rendering - also not sure if you want some alerts 0 radius and some 0.25
 }
+  */
 
 /* BUTTONS */
 
@@ -400,7 +407,7 @@ html.cms-standalone body {
   margin: var(--crm-l-medium) 0;
 }
 
-/* Make it clear when you're hovering delete. */
+/* Make it clear when you're hovering delete. *
 .crm-container .btn.btn-danger:hover,
 .crm-container .btn.btn-danger:focus,
 .crm-container a.button.delete-button:hover,
@@ -408,6 +415,8 @@ html.cms-standalone body {
 .crm-container a.button.delete:hover {
   color: var(--crm-c-red-bright);
 }
+  -- REMVOED - a danger-text color is now defined explicitly on hover
+  */
 .crm-icon-picker-button {
   float: none;
 }
@@ -439,48 +448,54 @@ html.cms-standalone body {
 /*   color: var(--crm-c-blue-darker) !important; */
 /* } */
 
-/* DROPDOWNS */
+/* DROPDOWNS
 .crm-container .btn-group .dropdown-menu,
 .crm-container .btn.dropdown-toggle+.dropdown-menu {
   border-radius: 4px;
-}
+  -- REMOVED - PR for core - https://github.com/civicrm/civicrm-core/pull/37404
+  }
 
-/* FORMS */
+/* FORMS
 
 .crm-container .replace-plain {
   background: #fff;
+  -- REMOVED - cannot find instance any moreof this class where input-bg isn't loading instead
 }
+  -- REMOVE - can't find this anywhere that input bg wouldn't do the same thing
 
 
 /* NOTIFICATIONS (the popup ones) */
-/* This produces a nicer hanging-indent type thing aligning the title and message to the left. */
+/* This produces a nicer hanging-indent type thing aligning the title and message to the left. *
 .crm-container .notify-content {
   padding-left: 1.6rem;
 }
+  -- MOVED INTO CORE PR (SAME WITH beLOW) https://github.com/civicrm/civicrm-core/pull/37400
 
-/* Thames theme does hanging indent for the little <i>con, but happy for the list bullets to be outside of main text block as is narrow column. */
+/* Thames theme does hanging indent for the little <i>con, but happy for the list bullets to be outside of main text block as is narrow column. *
 #crm-notification-container div.ui-notify-message .notify-content ul,
 #crm-notification-container div.ui-notify-message .alert.notify-content ul {
   margin: 1rem 0 0;
   padding: 0;
 }
 
-/* Only include the margin under the h1 (h1!) when it's not empty. When it's empty the h1 only contains the <i>con and adding a margin messes up vertical alignment of the message. */
+/* Only include the margin under the h1 (h1!) when it's not empty. When it's empty the h1 only contains the <i>con and adding a margin messes up vertical alignment of the message. *
 #crm-notification-container div.ui-notify-message h1:not(:empty) {
   margin-bottom: 1rem;
 }
+ -- REMOVED merged into core https://github.com/civicrm/civicrm-core/pull/37400
 
 /* OTHER */
-/* 'alpha-filter' is the alphabetical pager you see, for example, on adv search results */
+/* 'alpha-filter' is the alphabetical pager you see, for example, on adv search results *
 .crm-container #alpha-filter li {
-  --crm-text-color: #0002; /* referenced in searchForm.css */
+  --crm-text-color: #0002; /* referenced in searchForm.css *
 }
+-- REMOVED this is set to ##000000dd via your variables and searchForm.css l21 already
 
 .crm-container .description:not(#help),
 .crm-container td.description {
   font-size: 0.875rem;
+  -- REMOVED - new variable --crm-input-description-size: added
 }
-
 
 /* Get rid of the ugly black overlay during loading */
 @keyframes aahblockoverlay {
@@ -499,16 +514,17 @@ html.cms-standalone body {
 }
 
 /* CONTACT SUMMARY */
-/* Ensure the Summary tab's top left corner matches the radius of the container */
+/* Ensure the Summary tab's top left corner matches the radius of the container
+
+  /* I'm tempted to remove the following three selectors - I don't see they add anything that the default doesn't do */
+
 .crm-contact-page #mainTabContainer .crm-contact-tabs-list>li:first-child a {
   border-radius: var(--crm-contact-radius) 0 0 0;
 }
-
 .crm-contact-page #mainTabContainer .ui-tabs-nav li .ui-tabs-anchor:has(.crm-i) {
   grid-template-columns: var(--crm-contact-icon-size) 1fr auto;
   gap: 1ch;
 }
-
 .crm-contact-page #mainTabContainer .ui-tabs-nav li .ui-tabs-anchor .crm-i:first-child {
   justify-self: center;
 }
