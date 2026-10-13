@@ -254,21 +254,12 @@
   --crm-f-form-error-outline-color: var(--crm-c-red);
 }
 
-/* Only affect body colour in standalone */
-html.cms-standalone body {
-  background-color: var(--crm-page-bg-color);
-}
-
-#crm-container {
-  min-height: 100vh;
-  background-color: var(--crm-page-bg-color);
-}
+/* Accordions */
 
 .crm-container details {
   /* background-color: var(--crm-accordion-body-bg-color); Removed for FormBuilder clashes */
   border: var(--crm-border);
 }
-
 .crm-container summary {
   color: var(--crm-c-blue-darker); /* novar */
   cursor: pointer; /* show it's clickable */
@@ -279,9 +270,7 @@ html.cms-standalone body {
   background-color: var(--crm-c-blue-overlay2);
 }
 
-/* Replace Riverlea's FontAwesome icon with our own shape. */
-/* This rule is really sensitive to specificity. */
-/* .crm-container :where(details, .crm-accordion-wrapper)>:is(summary,.crm-accordion-header)::before {  */
+/* Replace Riverlea's FontAwesome icon with our own shape. This rule is really sensitive to specificity. */
 
 .crm-container details>summary::before /* accordion8 (recommended) */,
 .crm-container .crm-accordion-header::before, /* accordion1, accordion2, accordion6 */
@@ -312,7 +301,6 @@ html.cms-standalone body {
 .crm-container #extensions-main  details {
   border: none;
 }
-
 /* we have to sort of re-state these rules because the specificity of the above overrules the 'open' state
  * note that a lot of non-recommended patterns use .collapsed, whereas details uses [open] - reverse logic.
  * This covers accordion1, accordion2, accordion6.
@@ -350,28 +338,12 @@ html.cms-standalone body {
 }
 /* We don't want a different colour header bg on 'active' (open) but we do on hover
  * This doesn't work yet.*/
-.crm-container .crm-accordion-bold>summary:is(:hover,
-:focus) {
+.crm-container .crm-accordion-bold>summary:is(:hover,:focus) {
   background-color: var(--crm-c-blue-overlay2);
 }
 
+/* ALERTS */
 
-/* Alternate backgrounds */
-/* .crm-container details:not(.crm-accordion-light) details:not(.crm-accordion-light) { */
-/*   --crm-accordion-header-bg-color: var(--crm-c-blue-overlay2); */
-/* } */
-
-
-/* ALERTS (these are in-page-flow boxes with info, not the (normally) popup notifications) */
-
-/* help boxes: put stripe down left with icon in it. *
-.crm-container #help,
-.crm-container .help {
-  border: none;
-  border-left: 2rem solid #7cb5e1;
-  border-radius: 0;
-}
-  */
 .crm-container #help::before,
 .crm-container .help::before {
   color: #fff;
@@ -383,40 +355,9 @@ html.cms-standalone body {
   position: absolute;
   text-rendering: auto;
 }
-/* .crm-container .alert-success {
-  background-color: var(--crm-c-green);
-}
-  -- REMOVED - unless you also set border color and text color this looks odd mix of blue and green
-.crm-container :is(.status,
-.alert-warning,
-.messages.warning) {
-  --crm-l-radius: 0.25rem;
-  -- REMOVED - this wasn't rendering - also not sure if you want some alerts 0 radius and some 0.25
-}
-  */
 
 /* BUTTONS */
 
-/*.crm-container .btn,
-.crm-container button,
-.crm-container .crm-button,
-.crm-container [type="button"],
-.crm-container [type="reset"],
-.crm-container [type="submit"] {
-  Sometimes we have lots of buttons and they wrap to a 2nd line. This puts some vertical space betwixt.
-  margin: var(--crm-l-medium) 0;
-}
-
-/* Make it clear when you're hovering delete. *
-.crm-container .btn.btn-danger:hover,
-.crm-container .btn.btn-danger:focus,
-.crm-container a.button.delete-button:hover,
-.crm-container a.button.delete-button:focus,
-.crm-container a.button.delete:hover {
-  color: var(--crm-c-red-bright);
-}
-  -- REMVOED - a danger-text color is now defined explicitly on hover
-  */
 .crm-icon-picker-button {
   float: none;
 }
@@ -426,76 +367,11 @@ html.cms-standalone body {
 
 /* DIALOGS */
 
-/* I feel title, resize, close is a better order for buttons bs modal dialogs */
-/* .ui-dialog-title { flex: 1 1 auto; order: 1; } */
-/* .crm-dialog-titlebar-resize { order: 2; } */
 .crm-container.ui-dialog .ui-dialog-titlebar .ui-button.crm-dialog-titlebar-print {
   display: none;
 }
 
-/* .modal-header .close { order: 3; } */
-/* .crm-container  .modal-header .ui-icon[class*=" fa-"] { font-size: 1rem; } */
-/* I don't know what problem this solved, but it creates an undesired left padding */
-/* #bootstrap-theme .modal-header::before, #bootstrap-theme .modal-header::after { */
-/*   display: none !important; */
-/* } */
-/**/
-/* #bootstrap-theme .modal-header { */
-/*   border:none; */
-/* } */
-/**/
-/* .crm-container button.close { */
-/*   color: var(--crm-c-blue-darker) !important; */
-/* } */
-
-/* DROPDOWNS
-.crm-container .btn-group .dropdown-menu,
-.crm-container .btn.dropdown-toggle+.dropdown-menu {
-  border-radius: 4px;
-  -- REMOVED - PR for core - https://github.com/civicrm/civicrm-core/pull/37404
-  }
-
-/* FORMS
-
-.crm-container .replace-plain {
-  background: #fff;
-  -- REMOVED - cannot find instance any moreof this class where input-bg isn't loading instead
-}
-  -- REMOVE - can't find this anywhere that input bg wouldn't do the same thing
-
-
-/* NOTIFICATIONS (the popup ones) */
-/* This produces a nicer hanging-indent type thing aligning the title and message to the left. *
-.crm-container .notify-content {
-  padding-left: 1.6rem;
-}
-  -- MOVED INTO CORE PR (SAME WITH beLOW) https://github.com/civicrm/civicrm-core/pull/37400
-
-/* Thames theme does hanging indent for the little <i>con, but happy for the list bullets to be outside of main text block as is narrow column. *
-#crm-notification-container div.ui-notify-message .notify-content ul,
-#crm-notification-container div.ui-notify-message .alert.notify-content ul {
-  margin: 1rem 0 0;
-  padding: 0;
-}
-
-/* Only include the margin under the h1 (h1!) when it's not empty. When it's empty the h1 only contains the <i>con and adding a margin messes up vertical alignment of the message. *
-#crm-notification-container div.ui-notify-message h1:not(:empty) {
-  margin-bottom: 1rem;
-}
- -- REMOVED merged into core https://github.com/civicrm/civicrm-core/pull/37400
-
-/* OTHER */
-/* 'alpha-filter' is the alphabetical pager you see, for example, on adv search results *
-.crm-container #alpha-filter li {
-  --crm-text-color: #0002; /* referenced in searchForm.css *
-}
--- REMOVED this is set to ##000000dd via your variables and searchForm.css l21 already
-
-.crm-container .description:not(#help),
-.crm-container td.description {
-  font-size: 0.875rem;
-  -- REMOVED - new variable --crm-input-description-size: added
-}
+/* Loading Animations *.
 
 /* Get rid of the ugly black overlay during loading */
 @keyframes aahblockoverlay {
